@@ -1,8 +1,9 @@
 
 import { useState, type FormEvent } from 'react';
-import { Mail, Lock, CheckCircle2, Building2 } from 'lucide-react';
+import { Mail, Lock, CheckCircle2, Building2, User } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '@/context/AuthContext';
+import Link from 'next/link';
 
 interface AuthScreenProps {
   onSuccess: () => void;
@@ -51,8 +52,36 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <label className="text-sm font-medium text-text-main flex items-center gap-2">
+              <User className="w-4 h-4 text-primary-navy" />
+              Name
+            </label>
+            <input
+              name="name"
+              type="text"
+              required
+              placeholder="John Doe"
+              className="input-field"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-main flex items-center gap-2">
+              <User className="w-4 h-4 text-primary-navy" />
+              Father Name
+            </label>
+            <input
+              name="fatherName"
+              type="text"
+              required
+              placeholder="Richard Doe"
+              className="input-field"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-main flex items-center gap-2">
               <Mail className="w-4 h-4 text-primary-navy" />
-              Admin Email
+              Email
             </label>
             <input
               name="email"
@@ -70,6 +99,20 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
             </label>
             <input
               name="password"
+              type="password"
+              required
+              placeholder="••••••••"
+              className="input-field"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-main flex items-center gap-2">
+              <Lock className="w-4 h-4 text-primary-navy" />
+              Confirm Password
+            </label>
+            <input
+              name="confirmPassword"
               type="password"
               required
               placeholder="••••••••"
@@ -96,6 +139,15 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
             )}
           </button>
         </form>
+
+        <div className="mt-6 text-center">
+          <Link 
+            href="/login"
+            className="text-sm text-primary-navy font-medium hover:underline"
+          >
+            Already have an account? Login instead
+          </Link>
+        </div>
 
         <div className="mt-8 pt-6 border-t border-gray-100 text-center">
           <p className="text-xs text-text-muted">

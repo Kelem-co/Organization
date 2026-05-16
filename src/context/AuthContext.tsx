@@ -50,6 +50,7 @@ function writeStoredAuth(state: AuthState) {
 type AuthContextValue = AuthState & {
   hydrated: boolean;
   login: (email: string, password: string) => Promise<void>;
+  directLogin: (email: string, password: string) => Promise<void>;
   logout: () => void;
   completeOnboarding: () => void;
 };
@@ -85,6 +86,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [persist],
   );
 
+  const directLogin = useCallback(
+    async (email: string, password: string) => {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      if (!email || !password) {
+        throw new Error('Email and password are required');
+      }
+      persist({
+        isAuthenticated: true,
+        onboardingComplete: true,
+        user: { email },
+      });
+    },
+    [persist],
+  );
+
   const completeOnboarding = useCallback(() => {
     setAuth((prev) => {
       const next: AuthState = {
@@ -106,10 +122,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ...auth,
       hydrated,
       login,
+      directLogin,
       logout,
       completeOnboarding,
     }),
-    [auth, hydrated, login, logout, completeOnboarding],
+    [auth, hydrated, login, directLogin, logout, completeOnboarding],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
