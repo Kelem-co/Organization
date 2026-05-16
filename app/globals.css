@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Noto Sans Ethiopic", "Public Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary-navy: #1a237e;
+  --color-surface-white: #ffffff;
+  --color-bg-grey: #f8fafc;
+  --color-text-main: #0f172a;
+  --color-text-muted: #64748b;
+  --color-surface: #fbf8ff;
+  --color-surface-container: #f5f2fb;
+  --color-outline-variant: #dbd9e1;
+
+  --radius-school: 24px;
+}
+
+@layer base {
+  body {
+    @apply bg-bg-grey text-text-main font-sans min-h-screen overflow-x-hidden antialiased;
+  }
+}
+
+@layer components {
+  .card-elevated {
+    @apply bg-surface-white rounded-[var(--radius-school)] shadow-[0_20px_50px_rgba(0,0,0,0.03),0_10px_30px_rgba(0,0,0,0.02)] border border-black/[0.02] p-10 md:p-12;
+  }
+
+  .btn-primary {
+    @apply bg-primary-navy text-white px-8 py-4 rounded-full font-bold tracking-wide transition-all hover:bg-[#151B63] hover:shadow-[0_15px_30px_-5px_rgba(26,35,126,0.5)] hover:-translate-y-0.5 active:scale-[0.97] active:translate-y-0 disabled:opacity-50 flex items-center justify-center gap-2;
+  }
+
+  .btn-secondary {
+    @apply bg-white/40 backdrop-blur-sm text-primary-navy border border-primary-navy/10 px-8 py-4 rounded-full font-bold transition-all hover:bg-white hover:border-primary-navy/30 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.97] active:translate-y-0 disabled:opacity-50 flex items-center justify-center gap-2;
+  }
+
+  .input-field {
+    @apply w-full px-6 py-4 rounded-[var(--radius-school)] border border-gray-100 bg-gray-50/30 focus:bg-white focus:border-primary-navy focus:ring-8 focus:ring-primary-navy/[0.03] outline-none transition-all placeholder:text-gray-400 text-base;
+  }
+
+  .dashboard-surface {
+    @apply bg-surface text-primary-navy;
+  }
+}
