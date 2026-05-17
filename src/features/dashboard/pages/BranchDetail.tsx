@@ -51,6 +51,7 @@ export default function BranchDetail() {
     branches,
     admins,
     setAdmins,
+    loading,
   } = useBranchDetail(schoolId ?? '');
 
   React.useEffect(() => {
@@ -92,7 +93,34 @@ export default function BranchDetail() {
     console.log(`Invitation link sent to ${newAdmin.email}`);
   };
 
-  if (!school) return <div className="p-8">School not found</div>;
+  if (loading) {
+    return (
+      <Layout title="Loading...">
+        <div className="flex items-center justify-center h-full">
+          <div className="w-10 h-10 border-4 border-primary-navy/20 border-t-primary-navy rounded-full animate-spin" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!school) {
+    return (
+      <Layout title="School Not Found">
+        <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+          <div className="w-20 h-20 bg-red-50 rounded-2xl flex items-center justify-center mb-6">
+            <School className="w-10 h-10 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-primary-navy mb-3">School Not Found</h2>
+          <p className="text-gray-600 mb-6 max-w-md">
+            The school you're looking for doesn't exist or you don't have access to it.
+          </p>
+          <Link href="/" className="btn-primary">
+            Back to Dashboard
+          </Link>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout 

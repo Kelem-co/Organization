@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -15,16 +15,13 @@ import {
   Settings,
   LogOut,
   User as UserIcon,
-  Bell,
-  Shield
+  Shield,
+  Plus
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-
-const organizations = [
-  { id: '1', name: 'Acme Academy', branches: 5, color: 'bg-[#6366F1]' },
-  { id: '2', name: 'Zemen International', branches: 3, color: 'bg-[#10B981]' },
-  { id: '3', name: 'Unity Preparatory', branches: 4, color: 'bg-[#FF7A00]' },
-];
+import { schoolsApi } from '@/lib/services/schoolsApi';
+import { featureFlags } from '@/config/featureFlags';
+import type { ApiSchool } from '@/lib/types/schools';
 
 export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => void; isMobile?: boolean }) {
   const router = useRouter();
@@ -32,7 +29,48 @@ export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => v
   const { logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [activeOrg, setActiveOrg] = useState(organizations[0]);
+  const [schools, setSchools] = useState<ApiSchool[]>([]);
+  const [activeSchool, setActiveSchool] = useState<ApiSchool | null>(null);
+  const [loadingSchools, setLoadingSchools] = useState(true);
+
+  useEffect(() => {
+    const fetchSchools = async () => {
+      if (!featureFlags.useRealSchools) {
+        setLoadingSchools(false);
+        return;
+      }
+
+      try {
+        const response = await schoolsApi.list();
+        setSchools(response.results);
+        if (response.results.length > 0) {
+          setActiveSchool(response.results[0]);
+        }
+      } catch (err) {
+        console.error('Failed to fetch schools:', err);
+        
+        // Check if it's a 404 error (no schools exist yet)
+        if (err && typeof err === 'object' && 'normalized' in err) {
+          const apiError = err as { normalized: { code: string } };
+          if (apiError.normalized.code === 'NOT_FOUND') {
+            // 404 means no schools exist yet, not an error
+            setSchools([]);
+            setActiveSchool(null);
+            setLoadingSchools(false);
+            return;
+          }
+        }
+        
+        // For other errors, still set empty but log the error
+        setSchools([]);
+        setActiveSchool(null);
+      } finally {
+        setLoadingSchools(false);
+      }
+    };
+
+    fetchSchools();
+  }, []);
 
   const handleSignOut = () => {
     logout();
@@ -53,60 +91,102 @@ export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => v
       "w-full bg-[#F8FAFC] flex flex-col h-full overflow-y-auto",
       !isMobile && "border-r border-[#E2E8F0] fixed left-0 top-0 w-64 h-screen"
     )}>
-      {/* Organization Switcher */}
+      {/* School Switcher */}
       <div className="p-4 relative">
-        <button 
-          onClick={() => setIsOpen(!isOpen)}
-          className={cn(
-            "w-full flex items-center gap-3 p-2 rounded-lg border border-[#E2E8F0] bg-white transition-all text-left",
-            isOpen && "ring-1 ring-primary-navy border-primary-navy shadow-sm"
-          )}
-        >
-          <div className={cn("w-10 h-10 rounded-sm flex items-center justify-center shrink-0", activeOrg.color)}>
-            <School className="w-6 h-6 text-white" />
+        {loadingSchools ? (
+          <div className="w-full flex items-center justify-center p-4">
+            <div className="w-6 h-6 border-2 border-primary-navy/20 border-t-primary-navy rounded-full animate-spin" />
           </div>
-          <div className="flex-1 overflow-hidden">
-            <h2 className="font-bold text-primary-navy text-[13px] truncate leading-tight uppercase tracking-tight">{activeOrg.name}</h2>
-            <p className="text-[9px] font-bold text-primary-navy/40 uppercase tracking-[0.05em] mt-0.5">ORG. OWNER</p>
-          </div>
-          <ChevronsUpDown className="w-3 h-3 text-primary-navy/20 shrink-0" />
-        </button>
+        ) : schools.length === 0 ? (
+          <button 
+            onClick={() => {
+              router.push('/');
+              onNavClick?.();
+            }}
+            className="w-full flex items-center gap-3 p-3 rounded-lg border-2 border-dashed border-primary-navy/20 bg-white hover:bg-primary-navy/5 transition-all text-left"
+          >
+            <div className="w-10 h-10 rounded-sm flex items-center justify-center shrink-0 bg-primary-navy/10">
+              <Plus className="w-6 h-6 text-primary-navy" />
+            </div>
+            <div className="flex-1">
+              <h2 className="font-bold text-primary-navy text-[13px] leading-tight">Add School</h2>
+              <p className="text-[9px] font-bold text-primary-navy/40 uppercase tracking-[0.05em] mt-0.5">No schools yet</p>
+            </div>
+          </button>
+        ) : (
+          <>
+            <button 
+              onClick={() => setIsOpen(!isOpen)}
+              className={cn(
+                "w-full flex items-center gap-3 p-2 rounded-lg border border-[#E2E8F0] bg-white transition-all text-left",
+                isOpen && "ring-1 ring-primary-navy border-primary-navy shadow-sm"
+              )}
+            >
+              <div className="w-10 h-10 rounded-sm flex items-center justify-center shrink-0 bg-primary-navy">
+                <School className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <h2 className="font-bold text-primary-navy text-[13px] truncate leading-tight uppercase tracking-tight">
+                  {activeSchool?.name || 'Select School'}
+                </h2>
+                <p className="text-[9px] font-bold text-primary-navy/40 uppercase tracking-[0.05em] mt-0.5">
+                  {activeSchool?.country || 'No location'}
+                </p>
+              </div>
+              <ChevronsUpDown className="w-3 h-3 text-primary-navy/20 shrink-0" />
+            </button>
 
-        {/* Dropdown */}
-        {isOpen && (
-          <div className="absolute top-full left-4 right-4 mt-1 bg-white border border-outline-variant rounded-lg shadow-xl z-50 py-2 animate-in fade-in slide-in-from-top-1 duration-200">
-            <div className="px-4 pb-2 border-b border-outline-variant/30 mb-1">
-              <span className="text-[9px] font-bold text-primary-navy/40 uppercase tracking-[0.1em]">Switch School</span>
-            </div>
-            
-            <div className="space-y-0.5">
-              {organizations.map((org) => (
-                <button
-                  key={org.id}
-                  onClick={() => {
-                    setActiveOrg(org);
-                    setIsOpen(false);
-                    onNavClick?.();
-                  }}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors",
-                    activeOrg.id === org.id ? "bg-surface-container" : "hover:bg-surface"
-                  )}
-                >
-                  <div className={cn("w-8 h-8 rounded-sm flex items-center justify-center shrink-0", org.color)}>
-                    <School className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1 overflow-hidden">
-                    <h3 className="font-bold text-primary-navy text-[12px] truncate">{org.name}</h3>
-                    <p className="text-[9px] font-bold text-primary-navy/40 uppercase tracking-tighter">{org.branches} Branches</p>
-                  </div>
-                  {activeOrg.id === org.id && (
-                    <Check className="w-3 h-3 text-primary-navy shrink-0" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
+            {/* Dropdown */}
+            {isOpen && (
+              <div className="absolute top-full left-4 right-4 mt-1 bg-white border border-outline-variant rounded-lg shadow-xl z-50 py-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="px-4 pb-2 border-b border-outline-variant/30 mb-1">
+                  <span className="text-[9px] font-bold text-primary-navy/40 uppercase tracking-[0.1em]">Switch School</span>
+                </div>
+                
+                <div className="space-y-0.5 max-h-64 overflow-y-auto">
+                  {schools.map((school) => (
+                    <button
+                      key={school.id}
+                      onClick={() => {
+                        setActiveSchool(school);
+                        setIsOpen(false);
+                        onNavClick?.();
+                      }}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors",
+                        activeSchool?.id === school.id ? "bg-surface-container" : "hover:bg-surface"
+                      )}
+                    >
+                      <div className="w-8 h-8 rounded-sm flex items-center justify-center shrink-0 bg-primary-navy">
+                        <School className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1 overflow-hidden">
+                        <h3 className="font-bold text-primary-navy text-[12px] truncate">{school.name}</h3>
+                        <p className="text-[9px] font-bold text-primary-navy/40 uppercase tracking-tighter">{school.country}</p>
+                      </div>
+                      {activeSchool?.id === school.id && (
+                        <Check className="w-3 h-3 text-primary-navy shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="px-2 pt-2 border-t border-outline-variant/30 mt-1">
+                  <button
+                    onClick={() => {
+                      setIsOpen(false);
+                      router.push('/');
+                      onNavClick?.();
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-primary-navy hover:bg-surface transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add New School
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

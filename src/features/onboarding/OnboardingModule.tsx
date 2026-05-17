@@ -11,23 +11,43 @@ import PlansScreen from './components/PlansScreen';
 import StatusScreen from './components/StatusScreen';
 import Stepper from './components/Stepper';
 
+type VerificationStatus = 'verified' | 'pending_manual_review' | 'verification_unavailable';
+
 export default function OnboardingModule() {
   const router = useRouter();
-  const { completeOnboarding } = useAuth();
-  const [step, setStep] = useState<OnboardingStep>(OnboardingStep.AUTH);
-  const [, setDetails] = useState<OrganizationDetails | null>(null);
+  const { completeOnboarding, isAuthenticated } = useAuth();
+  // If user is already authenticated, start at DETAILS screen, otherwise start at AUTH
+  const [step, setStep] = useState<OnboardingStep>(
+    isAuthenticated ? OnboardingStep.DETAILS : OnboardingStep.AUTH
+  );
+  const [organizationData, setOrganizationData] = useState<{
+    details: OrganizationDetails | null;
+    verificationStatus: VerificationStatus;
+    organizationName: string;
+  }>({
+    details: null,
+    verificationStatus: 'verification_unavailable',
+    organizationName: '',
+  });
 
   const handleAuthSuccess = () => {
     setStep(OnboardingStep.DETAILS);
   };
 
-  const handleDetailsSubmit = (data: OrganizationDetails) => {
-    setDetails(data);
+  const handleDetailsSubmit = (data: OrganizationDetails & { verificationStatus?: string; organizationName?: string }) => {
+    setOrganizationData({
+      details: data,
+      verificationStatus: (data.verificationStatus as VerificationStatus) || 'verification_unavailable',
+      organizationName: data.organizationName || data.displayName,
+    });
     setStep(OnboardingStep.STATUS);
   };
 
   const handleStatusProceed = () => {
-    setStep(OnboardingStep.PLANS);
+    // Only proceed to plans if verified
+    if (organizationData.verificationStatus === 'verified') {
+      setStep(OnboardingStep.PLANS);
+    }
   };
 
   const handlePlanSelect = () => {
@@ -62,7 +82,11 @@ export default function OnboardingModule() {
                 <DetailsScreen onSubmit={handleDetailsSubmit} />
               )}
               {step === OnboardingStep.STATUS && (
-                <StatusScreen onProceed={handleStatusProceed} />
+                <StatusScreen 
+                  onProceed={handleStatusProceed} 
+                  verificationStatus={organizationData.verificationStatus}
+                  organizationName={organizationData.organizationName}
+                />
               )}
               {step === OnboardingStep.PLANS && (
                 <PlansScreen onComplete={handlePlanSelect} />

@@ -2,18 +2,18 @@ import { apiRequest } from '../api/client';
 import type { ApiSchool, CreateSchoolRequest, SchoolsListResponse } from '../types/schools';
 
 export const schoolsApi = {
-  async list(): Promise<ApiSchool[]> {
+  async list(): Promise<SchoolsListResponse> {
     const res = await apiRequest<SchoolsListResponse>({
       method: 'GET',
-      path: '/schools',
+      path: '/api/schools/',
     });
-    return res.data.schools;
+    return res.data;
   },
 
   async get(schoolId: string): Promise<ApiSchool> {
     const res = await apiRequest<ApiSchool>({
       method: 'GET',
-      path: `/schools/${schoolId}`,
+      path: `/api/schools/${schoolId}/`,
     });
     return res.data;
   },
@@ -21,7 +21,7 @@ export const schoolsApi = {
   async create(data: CreateSchoolRequest): Promise<ApiSchool> {
     const res = await apiRequest<ApiSchool>({
       method: 'POST',
-      path: '/schools',
+      path: '/api/schools/',
       body: data,
     });
     return res.data;
@@ -29,8 +29,8 @@ export const schoolsApi = {
 
   async update(schoolId: string, data: Partial<CreateSchoolRequest>): Promise<ApiSchool> {
     const res = await apiRequest<ApiSchool>({
-      method: 'PUT',
-      path: `/schools/${schoolId}`,
+      method: 'PATCH',
+      path: `/api/schools/${schoolId}/`,
       body: data,
     });
     return res.data;
@@ -39,7 +39,7 @@ export const schoolsApi = {
   async delete(schoolId: string): Promise<void> {
     await apiRequest<void>({
       method: 'DELETE',
-      path: `/schools/${schoolId}`,
+      path: `/api/schools/${schoolId}/`,
     });
   },
 };

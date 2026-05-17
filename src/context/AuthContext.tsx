@@ -154,19 +154,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // JWT tokens typically expire in 5 minutes, set expiration to 4 min for safety
         const expiresAt = Date.now() + 4 * 60 * 1000;
         
-        // Store session (we don't have user details yet, but that's ok)
+        // Store session - DON'T set onboardingComplete yet, let the login page decide
         tokenManager.setSession({
           userId: '', // We'll get this later if needed
           email: email,
           name: '',
           expiresAt,
-          onboardingComplete: true,
+          onboardingComplete: false, // Will be set to true after org check
         });
         
-        // Update auth state
+        // Update auth state - onboardingComplete is false initially
         setAuth({
           isAuthenticated: true,
-          onboardingComplete: true,
+          onboardingComplete: false,
           user: { email, id: '', name: '' },
         });
       } else {

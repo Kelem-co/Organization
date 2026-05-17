@@ -8,30 +8,62 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 export default function LoginPage() {
-  const { directLogin, hydrated, isAuthenticated, onboardingComplete } = useAuth();
+  const { directLogin, hydrated, isAuthenticated, onboardingComplete, completeOnboarding } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkingOrgs, setCheckingOrgs] = useState(false);
   const activated = searchParams.get('activated') === 'true';
+  const reset = searchParams.get('reset') === 'true';
 
   useEffect(() => {
-    if (hydrated && isAuthenticated && onboardingComplete) {
+    // Don't redirect if we're checking organizations
+    if (hydrated && isAuthenticated && onboardingComplete && !checkingOrgs) {
       router.replace('/');
     }
-  }, [hydrated, isAuthenticated, onboardingComplete, router]);
+  }, [hydrated, isAuthenticated, onboardingComplete, checkingOrgs, router]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setCheckingOrgs(true);
     const formData = new FormData(e.currentTarget);
     const email = String(formData.get('email') ?? '');
     const password = String(formData.get('password') ?? '');
 
     try {
       await directLogin(email, password);
-      router.push('/');
+      
+      // Check if user has organizations
+      const { featureFlags } = await import('@/config/featureFlags');
+      console.log('useRealOnboarding flag:', featureFlags.useRealOnboarding);
+      
+      if (featureFlags.useRealOnboarding) {
+        const { organizationsApi } = await import('@/lib/services/organizationsApi');
+        const orgsResponse = await organizationsApi.list();
+        
+        console.log('Organizations response:', orgsResponse);
+        console.log('Results length:', orgsResponse.results.length);
+        
+        // If user has organizations, mark onboarding complete and go to dashboard
+        if (orgsResponse.results.length > 0) {
+          console.log('User has organizations, marking onboarding complete and going to dashboard');
+          completeOnboarding();
+          // Small delay to ensure state updates
+          await new Promise(resolve => setTimeout(resolve, 100));
+          router.push('/');
+        } else {
+          console.log('User has no organizations, going to onboarding');
+          // Don't mark onboarding as complete - they need to create an organization
+          router.push('/onboarding');
+        }
+      } else {
+        console.log('useRealOnboarding is false, going to dashboard by default');
+        completeOnboarding();
+        router.push('/');
+      }
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'normalized' in err) {
         const apiError = err as { normalized: { message: string; fieldErrors?: Array<{ field: string; message: string }> } };
@@ -43,6 +75,7 @@ export default function LoginPage() {
       } else {
         setError(err instanceof Error ? err.message : 'Login failed');
       }
+      setCheckingOrgs(false);
     } finally {
       setLoading(false);
     }
@@ -76,6 +109,14 @@ export default function LoginPage() {
             </div>
           )}
 
+          {reset && (
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6">
+              <p className="text-sm text-green-800 text-center">
+                ✓ Your password has been reset! You can now login with your new password.
+              </p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <label className="text-sm font-medium text-text-main flex items-center gap-2">
@@ -92,10 +133,18 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-text-main flex items-center gap-2">
-                <Lock className="w-4 h-4 text-primary-navy" />
-                Password
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-text-main flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-primary-navy" />
+                  Password
+                </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs text-primary-navy font-medium hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <input
                 name="password"
                 type="password"

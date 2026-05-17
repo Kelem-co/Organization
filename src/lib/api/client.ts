@@ -141,7 +141,7 @@ export async function apiRequest<T>(config: RequestConfig): Promise<ApiResponse<
   const fetchOptions: RequestInit = {
     method: config.method,
     headers,
-    credentials: config.skipAuth ? 'omit' : 'include', // Use omit for auth endpoints to avoid CORS preflight issues
+    credentials: 'omit', // Omit credentials to avoid CORS issues - backend needs proper CORS config
     signal: config.signal,
   };
 
