@@ -3,12 +3,13 @@ import Layout from '../components/Layout';
 import SchoolCard from '../components/SchoolCard';
 import Modal from '../components/Modal';
 import { MOCK_SCHOOLS } from '../constants';
+import { useSchools } from '@/lib/hooks/useSchools';
 import { Upload, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function SchoolDashboard() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [schools, setSchools] = useState(MOCK_SCHOOLS);
+  const { schools, addSchool } = useSchools();
 
   const handleAddSchool = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -25,7 +26,7 @@ export default function SchoolDashboard() {
       website: formData.get('website') as string
     };
 
-    setSchools(prev => [newSchool, ...prev]);
+    addSchool(newSchool);
     setIsAddModalOpen(false);
   };
 

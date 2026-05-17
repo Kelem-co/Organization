@@ -9,10 +9,14 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { featureFlags } from '@/config/featureFlags';
+import { authApi } from '@/lib/services/authApi';
+import { tokenManager } from '@/lib/api/tokenManager';
+import { cacheManager } from '@/lib/api/cache';
 
 const STORAGE_KEY = 'organization-portal-auth';
 
-export type AuthUser = { email: string } | null;
+export type AuthUser = { email: string; id?: string; name?: string } | null;
 
 export type AuthState = {
   isAuthenticated: boolean;
@@ -25,6 +29,8 @@ const defaultAuth: AuthState = {
   onboardingComplete: false,
   user: null,
 };
+
+// ─── localStorage helpers (kept for mock fallback) ───────────────────────────
 
 function readStoredAuth(): AuthState {
   if (typeof window === 'undefined') return defaultAuth;
@@ -47,6 +53,8 @@ function writeStoredAuth(state: AuthState) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+// ─── Context types ────────────────────────────────────────────────────────────
+
 type AuthContextValue = AuthState & {
   hydrated: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -57,46 +65,96 @@ type AuthContextValue = AuthState & {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// ─── Provider ─────────────────────────────────────────────────────────────────
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState>(defaultAuth);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setAuth(readStoredAuth());
+    if (featureFlags.useRealAuth) {
+      // Restore session from tokenManager (sessionStorage)
+      const session = tokenManager.getSession();
+      if (session && !tokenManager.isTokenExpired()) {
+        setAuth({
+          isAuthenticated: true,
+          onboardingComplete: session.onboardingComplete,
+          user: { email: session.email, id: session.userId },
+        });
+      }
+    } else {
+      setAuth(readStoredAuth());
+    }
     setHydrated(true);
   }, []);
 
   const persist = useCallback((next: AuthState) => {
     setAuth(next);
-    writeStoredAuth(next);
+    if (!featureFlags.useRealAuth) {
+      writeStoredAuth(next);
+    }
   }, []);
 
+  // ── login (used by onboarding AuthScreen — sets onboardingComplete: false) ──
   const login = useCallback(
     async (email: string, password: string) => {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      if (!email || !password) {
-        throw new Error('Email and password are required');
+      if (!email || !password) throw new Error('Email and password are required');
+
+      if (featureFlags.useRealAuth) {
+        const response = await authApi.register({ name: '', fatherName: '', email, password });
+        tokenManager.setAccessToken(response.accessToken);
+        tokenManager.setSession({
+          userId: response.user.id,
+          email: response.user.email,
+          expiresAt: response.expiresAt,
+          onboardingComplete: response.user.onboardingComplete,
+        });
+        setAuth({
+          isAuthenticated: true,
+          onboardingComplete: response.user.onboardingComplete,
+          user: { email: response.user.email, id: response.user.id, name: response.user.name },
+        });
+      } else {
+        // Mock: simulate network delay
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        persist({
+          isAuthenticated: true,
+          onboardingComplete: false,
+          user: { email },
+        });
       }
-      persist({
-        isAuthenticated: true,
-        onboardingComplete: false,
-        user: { email },
-      });
     },
     [persist],
   );
 
+  // ── directLogin (used by /login page — sets onboardingComplete: true) ────────
   const directLogin = useCallback(
     async (email: string, password: string) => {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      if (!email || !password) {
-        throw new Error('Email and password are required');
+      if (!email || !password) throw new Error('Email and password are required');
+
+      if (featureFlags.useRealAuth) {
+        const response = await authApi.login({ email, password });
+        tokenManager.setAccessToken(response.accessToken);
+        tokenManager.setSession({
+          userId: response.user.id,
+          email: response.user.email,
+          expiresAt: response.expiresAt,
+          onboardingComplete: response.user.onboardingComplete,
+        });
+        setAuth({
+          isAuthenticated: true,
+          onboardingComplete: response.user.onboardingComplete,
+          user: { email: response.user.email, id: response.user.id, name: response.user.name },
+        });
+      } else {
+        // Mock: simulate network delay
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        persist({
+          isAuthenticated: true,
+          onboardingComplete: true,
+          user: { email },
+        });
       }
-      persist({
-        isAuthenticated: true,
-        onboardingComplete: true,
-        user: { email },
-      });
     },
     [persist],
   );
@@ -108,14 +166,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: true,
         onboardingComplete: true,
       };
-      writeStoredAuth(next);
+      if (!featureFlags.useRealAuth) {
+        writeStoredAuth(next);
+      } else {
+        // Update session metadata
+        const session = tokenManager.getSession();
+        if (session) {
+          tokenManager.setSession({ ...session, onboardingComplete: true });
+        }
+      }
       return next;
     });
   }, []);
 
-  const logout = useCallback(() => {
-    persist({ ...defaultAuth });
-  }, [persist]);
+  const logout = useCallback(async () => {
+    if (featureFlags.useRealAuth) {
+      try {
+        await authApi.logout();
+      } catch {
+        // Best-effort — always clear local state
+      }
+      tokenManager.clearTokens();
+      cacheManager.clear();
+    } else {
+      writeStoredAuth({ ...defaultAuth });
+    }
+    setAuth({ ...defaultAuth });
+  }, []);
 
   const value = useMemo(
     (): AuthContextValue => ({

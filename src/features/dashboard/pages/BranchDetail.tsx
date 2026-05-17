@@ -15,6 +15,7 @@ import {
   MOCK_BRANCHES, 
   MOCK_ADMINS 
 } from '../constants';
+import { useBranchDetail } from '@/lib/hooks/useBranchDetail';
 import { 
   Users, 
   GraduationCap, 
@@ -35,7 +36,7 @@ import {
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 
-const MAPS_KEY = process.env.GOOGLE_MAPS_PLATFORM_KEY || '';
+const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_PLATFORM_KEY || '';
 
 export default function BranchDetail() {
   const params = useParams();
@@ -44,11 +45,14 @@ export default function BranchDetail() {
   const [isAddBranchOpen, setIsAddBranchOpen] = useState(false);
   const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
   const [isBranchListOpen, setIsBranchListOpen] = useState(false);
-  const [admins, setAdmins] = useState(MOCK_ADMINS);
 
-  const school = useMemo(() => MOCK_SCHOOLS.find(s => s.id === schoolId), [schoolId]);
-  const branches = useMemo(() => MOCK_BRANCHES.filter(b => b.schoolId === schoolId), [schoolId]);
-  
+  const {
+    school,
+    branches,
+    admins,
+    setAdmins,
+  } = useBranchDetail(schoolId ?? '');
+
   React.useEffect(() => {
     if (branches.length > 0 && !selectedBranchId) {
       setSelectedBranchId(branches[0].id);
@@ -56,8 +60,8 @@ export default function BranchDetail() {
   }, [branches, selectedBranchId]);
 
   const selectedBranch = useMemo(() => 
-    MOCK_BRANCHES.find(b => b.id === selectedBranchId), 
-    [selectedBranchId]
+    branches.find(b => b.id === selectedBranchId), 
+    [branches, selectedBranchId]
   );
 
   const branchAdmins = useMemo(() => 
