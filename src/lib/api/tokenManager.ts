@@ -13,10 +13,12 @@
 
 const SESSION_KEY = 'org-session';
 const TOKEN_KEY = 'org-access-token';
+const REFRESH_TOKEN_KEY = 'org-refresh-token';
 
 export interface SessionMeta {
   userId: string;
   email: string;
+  name: string;
   expiresAt: number; // Unix timestamp (ms)
   onboardingComplete: boolean;
 }
@@ -36,6 +38,22 @@ export const tokenManager = {
   setAccessToken(token: string): void {
     if (typeof window === 'undefined') return;
     sessionStorage.setItem(TOKEN_KEY, token);
+  },
+
+  /**
+   * Returns the stored refresh token.
+   */
+  getRefreshToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return sessionStorage.getItem(REFRESH_TOKEN_KEY);
+  },
+
+  /**
+   * Stores a refresh token in sessionStorage.
+   */
+  setRefreshToken(token: string): void {
+    if (typeof window === 'undefined') return;
+    sessionStorage.setItem(REFRESH_TOKEN_KEY, token);
   },
 
   /**
@@ -75,6 +93,7 @@ export const tokenManager = {
   clearTokens(): void {
     if (typeof window === 'undefined') return;
     sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
     sessionStorage.removeItem(SESSION_KEY);
   },
 };

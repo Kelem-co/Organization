@@ -4,14 +4,16 @@ import { useState, type FormEvent, useEffect } from 'react';
 import { Mail, Lock, LogIn, Building2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 export default function LoginPage() {
   const { directLogin, hydrated, isAuthenticated, onboardingComplete } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const activated = searchParams.get('activated') === 'true';
 
   useEffect(() => {
     if (hydrated && isAuthenticated && onboardingComplete) {
@@ -30,8 +32,17 @@ export default function LoginPage() {
     try {
       await directLogin(email, password);
       router.push('/');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'normalized' in err) {
+        const apiError = err as { normalized: { message: string; fieldErrors?: Array<{ field: string; message: string }> } };
+        if (apiError.normalized.fieldErrors && apiError.normalized.fieldErrors.length > 0) {
+          setError(apiError.normalized.fieldErrors.map(e => `${e.field}: ${e.message}`).join(', '));
+        } else {
+          setError(apiError.normalized.message);
+        }
+      } else {
+        setError(err instanceof Error ? err.message : 'Login failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -57,6 +68,14 @@ export default function LoginPage() {
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.1 }}
         >
+          {activated && (
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6">
+              <p className="text-sm text-green-800 text-center">
+                ✓ Your account has been activated! You can now login.
+              </p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <label className="text-sm font-medium text-text-main flex items-center gap-2">

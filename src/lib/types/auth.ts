@@ -4,32 +4,52 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  name: string;
-  fatherName: string;
   email: string;
   password: string;
+  name: string;
+  father_name: string;
+  grandfather_name: string;
+  phone_number?: string;
+  address?: string;
 }
 
-export interface LoginResponse {
-  accessToken: string;
-  refreshToken?: string;
-  expiresAt: number; // Unix timestamp (ms)
-  user: ApiUser;
+export interface JWTResponse {
+  access: string;
+  refresh: string;
 }
 
 export interface ApiUser {
   id: string;
   email: string;
   name: string;
-  role: 'owner' | 'admin' | 'viewer';
-  onboardingComplete: boolean;
+  father_name: string;
+  grandfather_name: string;
+  phone_number: string;
+  address: string;
+  verified_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface RefreshTokenRequest {
-  refreshToken: string;
+  refresh: string;
 }
 
 export interface RefreshTokenResponse {
-  accessToken: string;
-  expiresAt: number;
+  access: string;
+}
+
+export interface ActivationRequest {
+  uid: string;
+  token: string;
+}
+
+export interface PasswordResetRequest {
+  email: string;
+}
+
+export interface PasswordResetConfirmRequest {
+  uid: string;
+  token: string;
+  new_password: string;
 }

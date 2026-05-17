@@ -41,7 +41,9 @@ const BASE_DELAY_MS = 1000;
 
 function buildUrl(path: string, params?: Record<string, string | number | boolean>): string {
   const base = appConfig.apiBaseUrl.replace(/\/$/, '');
-  const url = new URL(`${base}${path}`);
+  // Ensure path starts with /
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const url = new URL(`${base}${normalizedPath}`);
   if (params) {
     for (const [key, value] of Object.entries(params)) {
       url.searchParams.set(key, String(value));
@@ -134,13 +136,12 @@ export async function apiRequest<T>(config: RequestConfig): Promise<ApiResponse<
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    // If no token in sessionStorage, the browser will send httpOnly cookies automatically
   }
 
   const fetchOptions: RequestInit = {
     method: config.method,
     headers,
-    credentials: 'include', // Always send cookies (for httpOnly cookie auth)
+    credentials: config.skipAuth ? 'omit' : 'include', // Use omit for auth endpoints to avoid CORS preflight issues
     signal: config.signal,
   };
 
@@ -166,6 +167,39 @@ export async function apiRequest<T>(config: RequestConfig): Promise<ApiResponse<
 
       return result;
     } catch (err) {
+      // Handle 401 Unauthorized - try to refresh token
+      if (err instanceof ApiError && err.normalized.originalStatus === 401 && !config.skipAuth) {
+        const refreshToken = tokenManager.getRefreshToken();
+        if (refreshToken && attempt === 1) {
+          try {
+            // Try to refresh the token
+            const refreshResponse = await fetch(buildUrl('/auth/jwt/refresh/', {}), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refresh: refreshToken }),
+            });
+
+            if (refreshResponse.ok) {
+              const data = await refreshResponse.json() as { access: string };
+              tokenManager.setAccessToken(data.access);
+              
+              // Update headers with new token and retry
+              headers['Authorization'] = `Bearer ${data.access}`;
+              fetchOptions.headers = headers;
+              continue; // Retry with new token
+            } else {
+              // Refresh failed, clear tokens
+              tokenManager.clearTokens();
+              throw err;
+            }
+          } catch {
+            // Refresh failed, clear tokens
+            tokenManager.clearTokens();
+            throw err;
+          }
+        }
+      }
+
       // Never retry cancelled requests
       if (err instanceof ApiError && err.normalized.code === 'CANCELLED') throw err;
 

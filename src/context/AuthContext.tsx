@@ -101,18 +101,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!email || !password) throw new Error('Email and password are required');
 
       if (featureFlags.useRealAuth) {
-        const response = await authApi.register({ name: '', fatherName: '', email, password });
-        tokenManager.setAccessToken(response.accessToken);
+        // Call JWT create endpoint
+        const jwtResponse = await authApi.login({ email, password });
+        
+        // Store tokens
+        tokenManager.setAccessToken(jwtResponse.access);
+        tokenManager.setRefreshToken(jwtResponse.refresh);
+        
+        // JWT tokens typically expire in 5 minutes
+        const expiresAt = Date.now() + 4 * 60 * 1000;
+        
+        // Store session
         tokenManager.setSession({
-          userId: response.user.id,
-          email: response.user.email,
-          expiresAt: response.expiresAt,
-          onboardingComplete: response.user.onboardingComplete,
+          userId: '',
+          email: email,
+          name: '',
+          expiresAt,
+          onboardingComplete: false, // Onboarding flow starts after login
         });
+        
         setAuth({
           isAuthenticated: true,
-          onboardingComplete: response.user.onboardingComplete,
-          user: { email: response.user.email, id: response.user.id, name: response.user.name },
+          onboardingComplete: false,
+          user: { email, id: '', name: '' },
         });
       } else {
         // Mock: simulate network delay
@@ -133,18 +144,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!email || !password) throw new Error('Email and password are required');
 
       if (featureFlags.useRealAuth) {
-        const response = await authApi.login({ email, password });
-        tokenManager.setAccessToken(response.accessToken);
+        // Call JWT create endpoint
+        const jwtResponse = await authApi.login({ email, password });
+        
+        // Store tokens
+        tokenManager.setAccessToken(jwtResponse.access);
+        tokenManager.setRefreshToken(jwtResponse.refresh);
+        
+        // JWT tokens typically expire in 5 minutes, set expiration to 4 min for safety
+        const expiresAt = Date.now() + 4 * 60 * 1000;
+        
+        // Store session (we don't have user details yet, but that's ok)
         tokenManager.setSession({
-          userId: response.user.id,
-          email: response.user.email,
-          expiresAt: response.expiresAt,
-          onboardingComplete: response.user.onboardingComplete,
+          userId: '', // We'll get this later if needed
+          email: email,
+          name: '',
+          expiresAt,
+          onboardingComplete: true,
         });
+        
+        // Update auth state
         setAuth({
           isAuthenticated: true,
-          onboardingComplete: response.user.onboardingComplete,
-          user: { email: response.user.email, id: response.user.id, name: response.user.name },
+          onboardingComplete: true,
+          user: { email, id: '', name: '' },
         });
       } else {
         // Mock: simulate network delay
@@ -181,11 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     if (featureFlags.useRealAuth) {
-      try {
-        await authApi.logout();
-      } catch {
-        // Best-effort — always clear local state
-      }
+      // JWT logout is client-side only (no backend endpoint needed)
       tokenManager.clearTokens();
       cacheManager.clear();
     } else {

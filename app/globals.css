@@ -252,7 +252,7 @@
   }
 
   .input-field {
-    @apply w-full px-6 py-4 rounded-[var(--radius-school)] border border-gray-100 bg-gray-50/30 focus:bg-white focus:border-primary-navy focus:ring-8 focus:ring-primary-navy/[0.03] outline-none transition-all placeholder:text-gray-400 text-base;
+    @apply w-full px-6 py-4 rounded-[var(--radius-school)] border border-gray-100 bg-gray-50/30 focus:bg-white focus:border-primary-navy focus:ring-8 focus:ring-primary-navy/[0.03] outline-none transition-all placeholder:text-gray-400 text-base text-gray-900;
   }
 
   .dashboard-surface {

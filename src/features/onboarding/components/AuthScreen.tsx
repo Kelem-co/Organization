@@ -1,16 +1,17 @@
-
 import { useState, type FormEvent } from 'react';
-import { Mail, Lock, CheckCircle2, Building2, User } from 'lucide-react';
+import { Mail, Lock, CheckCircle2, Building2, User, Phone, MapPin } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { authApi } from '@/lib/services/authApi';
+import { featureFlags } from '@/config/featureFlags';
 
 interface AuthScreenProps {
   onSuccess: () => void;
 }
 
 export default function AuthScreen({ onSuccess }: AuthScreenProps) {
-  const { login } = useAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,15 +19,65 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    
     const formData = new FormData(e.currentTarget);
     const email = String(formData.get('email') ?? '');
     const password = String(formData.get('password') ?? '');
+    const confirmPassword = String(formData.get('confirmPassword') ?? '');
+    const name = String(formData.get('name') ?? '');
+    const fatherName = String(formData.get('fatherName') ?? '');
+    const grandfatherName = String(formData.get('grandfatherName') ?? '');
+    const phoneNumber = String(formData.get('phoneNumber') ?? '');
+    const address = String(formData.get('address') ?? '');
+
+    // Validation
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      setLoading(false);
+      return;
+    }
 
     try {
-      await login(email, password);
-      onSuccess();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign in failed');
+      if (featureFlags.useRealAuth) {
+        console.log('🔵 Using real auth API');
+        console.log('🔵 Backend URL:', process.env.NEXT_PUBLIC_API_BASE_URL);
+        
+        // Register user
+        await authApi.register({
+          email,
+          password,
+          name,
+          father_name: fatherName,
+          grandfather_name: grandfatherName,
+          phone_number: phoneNumber || undefined,
+          address: address || undefined,
+        });
+        
+        // Redirect to check email page
+        router.push(`/check-email?email=${encodeURIComponent(email)}`);
+      } else {
+        console.log('🟡 Using mock auth');
+        // Mock flow - skip email verification
+        onSuccess();
+      }
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'normalized' in err) {
+        const apiError = err as { normalized: { message: string; fieldErrors?: Array<{ field: string; message: string }> } };
+        if (apiError.normalized.fieldErrors && apiError.normalized.fieldErrors.length > 0) {
+          setError(apiError.normalized.fieldErrors.map(e => `${e.field}: ${e.message}`).join(', '));
+        } else {
+          setError(apiError.normalized.message);
+        }
+      } else {
+        setError(err instanceof Error ? err.message : 'Registration failed');
+      }
+      console.error('Registration error:', err);
     } finally {
       setLoading(false);
     }
@@ -40,7 +91,7 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
         </div>
         <h1 className="text-4xl font-black text-primary-navy mb-3 tracking-tight">School Administration</h1>
         <p className="text-xs text-primary-navy/40 font-bold uppercase tracking-[0.3em] mb-4">Institutional Portal</p>
-        <p className="text-text-muted text-lg">Enter your credentials to begin onboarding.</p>
+        <p className="text-text-muted text-lg">Create your account to begin onboarding.</p>
       </div>
 
       <motion.div 
@@ -53,13 +104,13 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
           <div className="space-y-2">
             <label className="text-sm font-medium text-text-main flex items-center gap-2">
               <User className="w-4 h-4 text-primary-navy" />
-              Name
+              Full Name *
             </label>
             <input
               name="name"
               type="text"
               required
-              placeholder="John Doe"
+              placeholder="John"
               className="input-field"
             />
           </div>
@@ -67,13 +118,27 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
           <div className="space-y-2">
             <label className="text-sm font-medium text-text-main flex items-center gap-2">
               <User className="w-4 h-4 text-primary-navy" />
-              Father Name
+              Father Name *
             </label>
             <input
               name="fatherName"
               type="text"
               required
-              placeholder="Richard Doe"
+              placeholder="Richard"
+              className="input-field"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-main flex items-center gap-2">
+              <User className="w-4 h-4 text-primary-navy" />
+              Grandfather Name *
+            </label>
+            <input
+              name="grandfatherName"
+              type="text"
+              required
+              placeholder="William"
               className="input-field"
             />
           </div>
@@ -81,7 +146,7 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
           <div className="space-y-2">
             <label className="text-sm font-medium text-text-main flex items-center gap-2">
               <Mail className="w-4 h-4 text-primary-navy" />
-              Email
+              Email *
             </label>
             <input
               name="email"
@@ -94,8 +159,34 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-text-main flex items-center gap-2">
+              <Phone className="w-4 h-4 text-primary-navy" />
+              Phone Number
+            </label>
+            <input
+              name="phoneNumber"
+              type="tel"
+              placeholder="+1234567890"
+              className="input-field"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-main flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-primary-navy" />
+              Address
+            </label>
+            <input
+              name="address"
+              type="text"
+              placeholder="123 Main Street"
+              className="input-field"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-main flex items-center gap-2">
               <Lock className="w-4 h-4 text-primary-navy" />
-              Password
+              Password *
             </label>
             <input
               name="password"
@@ -109,7 +200,7 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
           <div className="space-y-2">
             <label className="text-sm font-medium text-text-main flex items-center gap-2">
               <Lock className="w-4 h-4 text-primary-navy" />
-              Confirm Password
+              Confirm Password *
             </label>
             <input
               name="confirmPassword"
@@ -133,7 +224,7 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <>
-                Continue to Onboarding
+                Create Account & Continue
                 <CheckCircle2 className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </>
             )}
