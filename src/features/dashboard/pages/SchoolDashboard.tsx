@@ -3,9 +3,11 @@ import Layout from '../components/Layout';
 import SchoolCard from '../components/SchoolCard';
 import Modal from '../components/Modal';
 import { useSchools } from '@/lib/hooks/useSchools';
-import { Upload, ShieldCheck, School, Plus } from 'lucide-react';
+import { MediaUploader } from '@/components/MediaUploader';
+import { ShieldCheck, School, Plus } from 'lucide-react';
 import { motion } from 'motion/react';
 import { organizationsApi } from '@/lib/services/organizationsApi';
+import { branchesApi } from '@/lib/services/branchesApi';
 import { featureFlags } from '@/config/featureFlags';
 import type { Organization } from '@/lib/types/organizations';
 import type { CreateSchoolRequest } from '@/lib/types/schools';
@@ -14,9 +16,11 @@ export default function SchoolDashboard() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const { schools, addSchool, loading: schoolsLoading, error: schoolsError } = useSchools();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [branchCounts, setBranchCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadedLogoId, setUploadedLogoId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchOrganizations = async () => {
@@ -55,6 +59,32 @@ export default function SchoolDashboard() {
     fetchOrganizations();
   }, []);
 
+  // Fetch branch counts for each school
+  useEffect(() => {
+    const fetchBranchCounts = async () => {
+      if (!featureFlags.useRealBranches || schools.length === 0) {
+        return;
+      }
+
+      try {
+        const response = await branchesApi.list();
+        const counts: Record<string, number> = {};
+        
+        // Count branches per school
+        response.results.forEach(branch => {
+          counts[branch.school] = (counts[branch.school] || 0) + 1;
+        });
+        
+        setBranchCounts(counts);
+      } catch (err) {
+        console.error('Failed to fetch branch counts:', err);
+        // Silently fail - branch counts are not critical
+      }
+    };
+
+    fetchBranchCounts();
+  }, [schools]);
+
   const handleAddSchool = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
@@ -76,13 +106,19 @@ export default function SchoolDashboard() {
       status: 'ACTIVE',
     };
 
+    // Add logo if uploaded
+    if (uploadedLogoId) {
+      schoolData.logo = uploadedLogoId;
+    }
+
     try {
       setSubmitting(true);
       setError(null);
       await addSchool(schoolData);
       setIsAddModalOpen(false);
-      // Reset form
+      // Reset form and uploaded logo
       (e.target as HTMLFormElement).reset();
+      setUploadedLogoId(null);
     } catch (err) {
       console.error('Failed to add school:', err);
       if (err && typeof err === 'object' && 'normalized' in err) {
@@ -153,7 +189,10 @@ export default function SchoolDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <SchoolCard school={school} />
+                <SchoolCard 
+                  school={school} 
+                  branchCount={branchCounts[school.id] || 0}
+                />
               </motion.div>
             ))}
           </div>
@@ -165,6 +204,7 @@ export default function SchoolDashboard() {
         onClose={() => {
           setIsAddModalOpen(false);
           setError(null);
+          setUploadedLogoId(null);
         }} 
         title="Add New School"
       >
@@ -176,14 +216,13 @@ export default function SchoolDashboard() {
           )}
 
           <div className="grid grid-cols-1 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">School Logo (Optional)</label>
-              <div className="border-2 border-dashed border-outline-variant rounded-xl p-8 flex flex-col items-center justify-center bg-surface-container/50 hover:bg-surface-container transition-colors cursor-pointer group">
-                <Upload className="w-8 h-8 text-primary-navy/40 group-hover:text-primary-navy transition-colors mb-4" />
-                <span className="text-sm font-bold">Drop school logo here</span>
-                <span className="text-xs text-primary-navy/40 mt-1">PNG, JPG up to 10MB</span>
-              </div>
-            </div>
+            <MediaUploader
+              imageOnly={true}
+              accept="image/*"
+              onUploaded={(mediaId) => setUploadedLogoId(mediaId)}
+              label="School Logo (Optional)"
+              description="Drop school logo here"
+            />
 
             <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">School Name *</label>

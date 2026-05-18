@@ -2,41 +2,72 @@ import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import Drawer from '../components/Drawer';
-import { Settings as SettingsIcon, Shield, Bell, User, Globe, Lock, Camera, Mail, MessageSquare, Phone, ChevronRight } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { MediaUploader } from '@/components/MediaUploader';
+import { Shield, Bell, Mail, MessageSquare, Phone, ChevronRight, Building2, FileText, Lock } from 'lucide-react';
+import { useOrganization } from '@/lib/hooks/useOrganization';
+import type { UpdateOrganizationRequest } from '@/lib/types/organizations';
 
 export default function Settings() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isOwnerModalOpen, setIsOwnerModalOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   
-  const [orgName, setOrgName] = useState('Acme Academy');
-  const [orgId, setOrgId] = useState('19420-OR');
+  const { organization, loading, error: fetchError, updateOrganization } = useOrganization();
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [uploadedLicenseId, setUploadedLicenseId] = useState<string | null>(null);
 
-  const [ownerName, setOwnerName] = useState('Sarah Jenkins');
-  const [ownerTitle, setOwnerTitle] = useState('Chief Executive Officer');
-  const [ownerEmail, setOwnerEmail] = useState('sarah.jenkins@acmeacademy.edu');
-
-  const handleUpdateProfile = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    setOrgName(formData.get('name') as string);
-    setOrgId(formData.get('id') as string);
-    setIsEditModalOpen(false);
-  };
+    
+    if (!organization) {
+      setError('No organization found');
+      return;
+    }
 
-  const handleUpdateOwner = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    setOwnerName(formData.get('name') as string);
-    setOwnerTitle(formData.get('title') as string);
-    setOwnerEmail(formData.get('email') as string);
-    setIsOwnerModalOpen(false);
+    
+    const updateData: UpdateOrganizationRequest = {
+      name: formData.get('name') as string,
+      trade_name: formData.get('trade_name') as string,
+      tin_number: formData.get('tin_number') as string,
+      license_no: formData.get('license_no') as string,
+      client_full_name: formData.get('client_full_name') as string,
+      business_address: formData.get('business_address') as string,
+      business_phone_number: formData.get('business_phone_number') as string,
+      client_phone_number: formData.get('client_phone_number') as string,
+    };
+
+    // Add license image if uploaded
+    if (uploadedLicenseId) {
+      updateData.business_license_image = uploadedLicenseId;
+    }
+
+    try {
+      setSubmitting(true);
+      setError(null);
+      await updateOrganization(updateData);
+      setIsEditModalOpen(false);
+      setUploadedLicenseId(null);
+    } catch (err) {
+      console.error('Failed to update organization:', err);
+      if (err && typeof err === 'object' && 'normalized' in err) {
+        const apiError = err as { normalized: { message: string; fieldErrors?: Array<{ field: string; message: string }> } };
+        if (apiError.normalized.fieldErrors && apiError.normalized.fieldErrors.length > 0) {
+          setError(apiError.normalized.fieldErrors.map(e => `${e.field}: ${e.message}`).join(', '));
+        } else {
+          setError(apiError.normalized.message);
+        }
+      } else {
+        setError('Failed to update organization. Please try again.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDeleteOrganization = () => {
-    console.log(`Deleting organization: ${orgName}`);
+    console.log(`Deleting organization: ${organization?.name}`);
     setIsDeleteModalOpen(false);
   };
 
@@ -44,18 +75,55 @@ export default function Settings() {
     { icon: Bell, title: 'Notifications', desc: 'Control alerts for enrollment, billing, and system updates' },
   ];
 
+  if (loading) {
+    return (
+      <Layout title="Organization Settings">
+        <div className="flex items-center justify-center py-20">
+          <div className="w-10 h-10 border-4 border-primary-navy/20 border-t-primary-navy rounded-full animate-spin" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (fetchError && !organization) {
+    return (
+      <Layout title="Organization Settings">
+        <div className="p-4 lg:p-8">
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+            <p className="text-red-800 mb-4">{fetchError}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="text-sm text-primary-navy font-medium hover:underline"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout title="Organization Settings">
       <div className="p-4 lg:p-8 max-w-4xl space-y-6 lg:space-y-8">
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <p className="text-sm text-red-800">{error}</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 gap-6 lg:gap-8">
           <div className="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
             <div className="p-6 lg:p-8 border-b border-outline-variant flex flex-col sm:flex-row items-start sm:items-center gap-6">
               <div className="w-16 lg:w-20 h-16 lg:h-20 rounded-xl bg-surface-container flex items-center justify-center border border-outline-variant shrink-0">
-                <SettingsIcon className="w-8 lg:w-10 h-8 lg:h-10 text-primary-navy/20" />
+                <Building2 className="w-8 lg:w-10 h-8 lg:h-10 text-primary-navy/20" />
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="text-lg lg:text-xl font-bold text-primary-navy truncate">{orgName}</h2>
-                <p className="text-xs lg:text-sm text-primary-navy/40 font-medium">Enterprise Organization • ID: {orgId}</p>
+                <h2 className="text-lg lg:text-xl font-bold text-primary-navy truncate">{organization?.name}</h2>
+                <p className="text-xs lg:text-sm text-primary-navy/40 font-medium">
+                  {organization?.verification_status === 'verified' ? 'Verified' : 'Pending Verification'} Organization • 
+                  Status: {organization?.status}
+                </p>
               </div>
               <button 
                 onClick={() => setIsEditModalOpen(true)}
@@ -93,8 +161,43 @@ export default function Settings() {
             <div className="flex flex-col gap-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xs lg:text-sm font-bold uppercase tracking-[0.15em] text-primary-navy mb-1">Organization Owner</h3>
-                  <p className="text-[10px] lg:text-xs text-primary-navy/40 font-medium">Primary administrative contact</p>
+                  <h3 className="text-xs lg:text-sm font-bold uppercase tracking-[0.15em] text-primary-navy mb-1">Organization Details</h3>
+                  <p className="text-[10px] lg:text-xs text-primary-navy/40 font-medium">Business information and contact details</p>
+                </div>
+                <FileText className="w-5 h-5 text-primary-navy/20" />
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/40 mb-1">Trade Name</p>
+                  <p className="text-sm font-medium text-primary-navy">{organization?.trade_name || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/40 mb-1">TIN Number</p>
+                  <p className="text-sm font-medium text-primary-navy">{organization?.tin_number || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/40 mb-1">License No</p>
+                  <p className="text-sm font-medium text-primary-navy">{organization?.license_no || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/40 mb-1">Business Phone</p>
+                  <p className="text-sm font-medium text-primary-navy">{organization?.business_phone_number || 'N/A'}</p>
+                </div>
+                <div className="sm:col-span-2">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/40 mb-1">Business Address</p>
+                  <p className="text-sm font-medium text-primary-navy">{organization?.business_address || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-outline-variant rounded-xl p-6 lg:p-8 shadow-sm">
+            <div className="flex flex-col gap-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs lg:text-sm font-bold uppercase tracking-[0.15em] text-primary-navy mb-1">Primary Contact</h3>
+                  <p className="text-[10px] lg:text-xs text-primary-navy/40 font-medium">Organization owner information</p>
                 </div>
                 <Shield className="w-5 h-5 text-primary-navy/20" />
               </div>
@@ -102,19 +205,13 @@ export default function Settings() {
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 <div className="flex items-center gap-4 flex-1 min-w-0">
                   <div className="w-10 h-10 rounded-full bg-primary-navy/5 flex items-center justify-center font-bold text-primary-navy shrink-0">
-                    {ownerName.split(' ').map(n => n[0]).join('')}
+                    {organization?.client_full_name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'NA'}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-primary-navy truncate">{ownerName}</h3>
-                    <p className="text-xs text-primary-navy/40 font-medium truncate">{ownerTitle}</p>
+                    <h3 className="text-sm font-bold text-primary-navy truncate">{organization?.client_full_name || 'N/A'}</h3>
+                    <p className="text-xs text-primary-navy/40 font-medium truncate">{organization?.client_phone_number || 'No phone'}</p>
                   </div>
                 </div>
-                <button 
-                  onClick={() => setIsOwnerModalOpen(true)}
-                  className="w-full sm:w-auto text-primary-navy/40 hover:text-primary-navy text-[10px] font-bold uppercase tracking-widest transition-colors text-left sm:text-right"
-                >
-                  Edit Profile
-                </button>
               </div>
             </div>
           </div>
@@ -141,62 +238,139 @@ export default function Settings() {
 
       <Modal 
         isOpen={isEditModalOpen} 
-        onClose={() => setIsEditModalOpen(false)} 
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setError(null);
+          setUploadedLicenseId(null);
+        }} 
         title="Edit Organization Profile"
       >
         <form className="space-y-6" onSubmit={handleUpdateProfile}>
-          <div className="flex flex-col items-center gap-4 mb-4 lg:mb-8">
-            <div className="relative group">
-              <div className="w-20 lg:w-24 h-20 lg:h-24 rounded-2xl bg-surface-container flex items-center justify-center border border-outline-variant overflow-hidden">
-                <SettingsIcon className="w-10 lg:w-12 h-10 lg:h-12 text-primary-navy/20" />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Camera className="w-6 h-6 text-white" />
-                </div>
-              </div>
-              <button type="button" className="absolute -bottom-2 -right-2 p-2 bg-white border border-outline-variant rounded-lg shadow-sm hover:bg-surface-container transition-colors">
-                <Camera className="w-4 h-4 text-primary-navy" />
-              </button>
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <p className="text-sm text-red-800">{error}</p>
             </div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/40">Institution Logo</p>
-          </div>
+          )}
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Organization Name</label>
+          <MediaUploader
+            imageOnly={true}
+            accept="image/*"
+            onUploaded={(mediaId) => setUploadedLicenseId(mediaId)}
+            label="Business License Image (Optional)"
+            description="Drop business license image here"
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2 sm:col-span-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Organization Name *</label>
               <input 
                 name="name"
                 type="text" 
                 required
-                defaultValue={orgName}
+                defaultValue={organization?.name}
                 placeholder="e.g. Acme Academy"
                 className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Organization ID</label>
+            <div className="space-y-2 sm:col-span-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Trade Name *</label>
               <input 
-                name="id"
+                name="trade_name"
                 type="text" 
                 required
-                defaultValue={orgId}
-                placeholder="e.g. 19420-OR"
+                defaultValue={organization?.trade_name}
+                placeholder="e.g. Acme Education Group"
                 className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Contact Email</label>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">TIN Number *</label>
               <input 
-                type="email" 
-                placeholder="admin@acmeacademy.edu"
+                name="tin_number"
+                type="text" 
+                required
+                defaultValue={organization?.tin_number}
+                placeholder="e.g. 123456789"
+                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">License Number *</label>
+              <input 
+                name="license_no"
+                type="text" 
+                required
+                defaultValue={organization?.license_no}
+                placeholder="e.g. LIC-2024-001"
+                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+              />
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Client Full Name *</label>
+              <input 
+                name="client_full_name"
+                type="text" 
+                required
+                defaultValue={organization?.client_full_name}
+                placeholder="e.g. John Doe"
+                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+              />
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Business Address *</label>
+              <textarea 
+                name="business_address"
+                required
+                defaultValue={organization?.business_address}
+                placeholder="e.g. 123 Main St, City, Country"
+                rows={2}
+                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20 resize-none"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Business Phone *</label>
+              <input 
+                name="business_phone_number"
+                type="tel" 
+                required
+                defaultValue={organization?.business_phone_number}
+                placeholder="+1 (555) 000-0000"
+                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Client Phone *</label>
+              <input 
+                name="client_phone_number"
+                type="tel" 
+                required
+                defaultValue={organization?.client_phone_number}
+                placeholder="+1 (555) 000-0000"
                 className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
               />
             </div>
           </div>
 
-          <button type="submit" className="w-full bg-primary-navy text-white py-4 rounded-lg font-bold text-sm uppercase tracking-[0.1em] hover:opacity-90 transition-opacity active:scale-95">
-            Save Changes
+          <button 
+            type="submit" 
+            disabled={submitting}
+            className="w-full bg-primary-navy text-white py-4 rounded-lg font-bold text-sm uppercase tracking-[0.1em] hover:opacity-90 transition-opacity active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Saving Changes...
+              </div>
+            ) : (
+              'Save Changes'
+            )}
           </button>
         </form>
       </Modal>
@@ -213,7 +387,7 @@ export default function Settings() {
               <div className="flex flex-col gap-1">
                 <span className="text-sm font-bold text-rose-900">Irreversible Action</span>
                 <p className="text-xs font-medium text-rose-700/70 leading-relaxed">
-                  By offboarding <strong>{orgName}</strong>, you will permanently terminate access for all associated entities.
+                  By offboarding <strong>{organization?.name}</strong>, you will permanently terminate access for all associated entities.
                 </p>
               </div>
             </div>
@@ -243,56 +417,6 @@ export default function Settings() {
             </button>
           </div>
         </div>
-      </Modal>
-
-      <Modal 
-        isOpen={isOwnerModalOpen} 
-        onClose={() => setIsOwnerModalOpen(false)} 
-        title="Edit Owner Profile"
-      >
-        <form className="space-y-6" onSubmit={handleUpdateOwner}>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Full Name</label>
-              <input 
-                name="name"
-                type="text" 
-                required
-                defaultValue={ownerName}
-                placeholder="e.g. Sarah Jenkins"
-                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Professional Title</label>
-              <input 
-                name="title"
-                type="text" 
-                required
-                defaultValue={ownerTitle}
-                placeholder="e.g. CEO"
-                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Email Address</label>
-              <input 
-                name="email"
-                type="email" 
-                required
-                defaultValue={ownerEmail}
-                placeholder="sarah.jenkins@acmeacademy.edu"
-                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
-              />
-            </div>
-          </div>
-
-          <button type="submit" className="w-full bg-primary-navy text-white py-4 rounded-lg font-bold text-sm uppercase tracking-[0.1em] hover:opacity-90 transition-opacity active:scale-95">
-            Update Owner Details
-          </button>
-        </form>
       </Modal>
 
       <Drawer

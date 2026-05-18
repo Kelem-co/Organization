@@ -3,19 +3,18 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import Sidebar from '../components/Sidebar';
-import TopBar from '../components/TopBar';
 import StatCard from '../components/StatCard';
 import PerformanceChart from '../components/PerformanceChart';
 import Modal from '../components/Modal';
 import Layout from '../components/Layout';
-import { APIProvider, Map, AdvancedMarker } from '@vis.gl/react-google-maps';
 import { 
   MOCK_SCHOOLS, 
   MOCK_BRANCHES, 
   MOCK_ADMINS 
 } from '../constants';
 import { useBranchDetail } from '@/lib/hooks/useBranchDetail';
+import { branchAdminsApi } from '@/lib/services/branchAdminsApi';
+import { featureFlags } from '@/config/featureFlags';
 import { 
   Users, 
   GraduationCap, 
@@ -23,20 +22,15 @@ import {
   MapPin, 
   MoreVertical,
   Mail,
-  Shield,
-  Search,
   ChevronRight,
   Home,
   Plus,
   Trash2,
   UserPlus,
-  Menu,
-  ChevronDown
+  School,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
-
-const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_PLATFORM_KEY || '';
 
 export default function BranchDetail() {
   const params = useParams();
@@ -44,14 +38,18 @@ export default function BranchDetail() {
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [isAddBranchOpen, setIsAddBranchOpen] = useState(false);
   const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
-  const [isBranchListOpen, setIsBranchListOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const {
     school,
     branches,
     admins,
+    branchAdminsMap,
     setAdmins,
     loading,
+    addBranch,
+    refreshBranchAdmins,
   } = useBranchDetail(schoolId ?? '');
 
   React.useEffect(() => {
@@ -65,32 +63,132 @@ export default function BranchDetail() {
     [branches, selectedBranchId]
   );
 
-  const branchAdmins = useMemo(() => 
-    admins.filter(a => a.branchId === selectedBranchId), 
-    [selectedBranchId, admins]
-  );
+  const branchAdmins = useMemo(() => {
+    if (!selectedBranchId) return [];
+    
+    // Use real branch admins when using real branches
+    if (featureFlags.useRealBranches && branchAdminsMap[selectedBranchId]) {
+      const adminsData = branchAdminsMap[selectedBranchId];
+      
+      // Ensure it's an array before mapping
+      if (!Array.isArray(adminsData)) {
+        console.error('Branch admins data is not an array:', adminsData);
+        return [];
+      }
+      
+      // Convert BranchAdmin to Admin format for display
+      return adminsData.map(admin => ({
+        id: admin.id,
+        branchId: admin.branch,
+        name: admin.name,
+        role: admin.role_title,
+        email: admin.email,
+        status: admin.status.toLowerCase() as 'active' | 'inactive',
+        lastLogin: admin.last_login,
+      }));
+    }
+    
+    // Fallback to mock admins
+    return admins.filter(a => a.branchId === selectedBranchId);
+  }, [selectedBranchId, admins, branchAdminsMap]);
 
   const handleRemoveAdmin = (adminId: string) => {
     setAdmins(prev => prev.filter(a => a.id !== adminId));
   };
 
-  const handleAddAdmin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddBranch = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    if (!school) {
+      setError('School information not available');
+      return;
+    }
+
     const formData = new FormData(e.currentTarget);
-    const newAdmin = {
-      id: `a${Date.now()}`,
-      branchId: selectedBranchId!,
-      name: formData.get('name') as string,
-      role: formData.get('role') as string,
-      email: formData.get('email') as string,
-      status: 'active' as const
-    };
     
-    setAdmins(prev => [...prev, newAdmin]);
-    setIsAddAdminOpen(false);
+    try {
+      setSubmitting(true);
+      setError(null);
+      
+      const branchData = {
+        name: formData.get('name') as string,
+        address: formData.get('address') as string,
+        city: formData.get('city') as string,
+        region: formData.get('region') as string || '',
+        contact_phone: formData.get('contact_phone') as string || '',
+        contact_email: formData.get('contact_email') as string || '',
+      };
+      
+      await addBranch(branchData);
+      setIsAddBranchOpen(false);
+      // Reset form
+      (e.target as HTMLFormElement).reset();
+    } catch (err) {
+      console.error('Failed to create branch:', err);
+      if (err && typeof err === 'object' && 'normalized' in err) {
+        const apiError = err as { normalized: { message: string; fieldErrors?: Array<{ field: string; message: string }> } };
+        if (apiError.normalized.fieldErrors && apiError.normalized.fieldErrors.length > 0) {
+          setError(apiError.normalized.fieldErrors.map(e => `${e.field}: ${e.message}`).join(', '));
+        } else {
+          setError(apiError.normalized.message);
+        }
+      } else {
+        setError('Failed to create branch. Please try again.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleAddAdmin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     
-    // Simulate sending invitation
-    console.log(`Invitation link sent to ${newAdmin.email}`);
+    if (!selectedBranchId) {
+      setError('No branch selected');
+      return;
+    }
+
+    const formData = new FormData(e.currentTarget);
+    
+    try {
+      setSubmitting(true);
+      setError(null);
+
+      // Always use real API
+      await branchAdminsApi.invite({
+        email: formData.get('email') as string,
+        name: formData.get('name') as string,
+        father_name: formData.get('father_name') as string,
+        grandfather_name: formData.get('grandfather_name') as string,
+        role_title: formData.get('role_title') as string,
+        branch: selectedBranchId,
+      });
+      
+      setIsAddAdminOpen(false);
+      (e.target as HTMLFormElement).reset();
+      
+      // Refresh the branch admins list
+      if (featureFlags.useRealBranches) {
+        await refreshBranchAdmins(selectedBranchId);
+      }
+      
+      // Show success message
+      console.log('Invitation sent successfully to', formData.get('email'));
+    } catch (err) {
+      console.error('Failed to invite admin:', err);
+      if (err && typeof err === 'object' && 'normalized' in err) {
+        const apiError = err as { normalized: { message: string; fieldErrors?: Array<{ field: string; message: string }> } };
+        if (apiError.normalized.fieldErrors && apiError.normalized.fieldErrors.length > 0) {
+          setError(apiError.normalized.fieldErrors.map(e => `${e.field}: ${e.message}`).join(', '));
+        } else {
+          setError(apiError.normalized.message);
+        }
+      } else {
+        setError('Failed to send invitation. Please try again.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -129,7 +227,7 @@ export default function BranchDetail() {
       actionLabel="New Branch"
     >
       <div className="flex flex-col h-full overflow-hidden">
-        {/* Breadcrumbs - Responsive visibility/scroll */}
+        {/* Breadcrumbs */}
         <div className="px-4 lg:px-8 py-3 bg-white/50 backdrop-blur-md border-b border-outline-variant flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary-navy/40 overflow-x-auto whitespace-nowrap no-scrollbar sticky top-0 z-20">
           <Link href="/" className="hover:text-primary-navy flex items-center gap-1 transition-colors shrink-0">
             <Home className="w-3 h-3" />
@@ -145,95 +243,52 @@ export default function BranchDetail() {
           )}
         </div>
 
-        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-          {/* Branch Selector - Hidden on mobile, Sidebar on desktop */}
-          <div className="hidden lg:flex w-80 border-r border-outline-variant bg-white flex-col shrink-0 overflow-y-auto">
-            <div className="p-6 border-b border-outline-variant">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/40">Campus Branches</h3>
-                <span className="bg-surface-container px-2 py-0.5 rounded text-[10px] font-bold text-primary-navy">{branches.length}</span>
+        {/* Modern Branch Selector - Compact Tabs */}
+        <div className="px-4 lg:px-8 py-4 bg-white border-b border-outline-variant">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-primary-navy/10 flex items-center justify-center">
+                <MapPin className="w-4 h-4 text-primary-navy" />
               </div>
-              <div className="space-y-2">
-                {branches.map(branch => (
-                  <button
-                    key={branch.id}
-                    onClick={() => setSelectedBranchId(branch.id)}
-                    className={cn(
-                      "w-full text-left p-4 rounded-lg border transition-all duration-300 group flex items-center justify-between relative overflow-hidden",
-                      selectedBranchId === branch.id 
-                        ? "bg-primary-navy border-primary-navy text-white shadow-xl translate-x-2" 
-                        : "bg-surface border-outline-variant text-primary-navy hover:border-primary-navy/40 hover:bg-surface-container"
-                    )}
-                  >
-                    <div className="flex flex-col relative z-10">
-                      <span className="font-bold text-sm tracking-tight">{branch.name}</span>
-                      <span className={cn(
-                        "text-[10px] font-bold uppercase tracking-wider mt-0.5",
-                        selectedBranchId === branch.id ? "text-white/60" : "text-primary-navy/40"
-                      )}>{branch.city}</span>
-                    </div>
-                    {selectedBranchId === branch.id && (
-                      <Activity className="w-4 h-4 text-white animate-pulse relative z-10" />
-                    )}
-                  </button>
-                ))}
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/40">Branches</span>
+                <span className="text-xs font-bold text-primary-navy">{branches.length} Location{branches.length !== 1 ? 's' : ''}</span>
               </div>
             </div>
             
-            <div className="flex-1 p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Shield className="w-4 h-4 text-primary-navy" />
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/40">Verified Location</h3>
-              </div>
-              <div className="rounded-xl overflow-hidden h-48 border border-outline-variant group cursor-crosshair">
-                {MAPS_KEY ? (
-                  <APIProvider apiKey={MAPS_KEY}>
-                    <Map
-                      defaultCenter={{ lat: 51.5074, lng: -0.1278 }}
-                      defaultZoom={11}
-                      gestureHandling={'none'}
-                      disableDefaultUI={true}
-                      internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
-                      style={{ width: '100%', height: '100%' }}
-                    >
-                      <AdvancedMarker position={{ lat: 51.5074, lng: -0.1278 }} />
-                    </Map>
-                  </APIProvider>
-                ) : (
-                  <div className="w-full h-full bg-surface-container flex flex-col items-center justify-center p-6 text-center group-hover:bg-primary-navy/5 transition-colors">
-                    <MapPin className="w-6 h-6 text-primary-navy/20 mb-2" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/40">Geographic Verification System</span>
+            <div className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar">
+              {branches.map(branch => (
+                <button
+                  key={branch.id}
+                  onClick={() => setSelectedBranchId(branch.id)}
+                  className={cn(
+                    "relative px-4 py-2 rounded-lg text-xs font-bold transition-all shrink-0 border",
+                    selectedBranchId === branch.id 
+                      ? "bg-primary-navy text-white border-primary-navy shadow-md" 
+                      : "bg-white text-primary-navy/60 border-outline-variant hover:border-primary-navy/30 hover:text-primary-navy hover:bg-surface"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>{branch.name}</span>
+                    {selectedBranchId === branch.id && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                    )}
                   </div>
-                )}
-              </div>
-              <div className="mt-4 p-4 bg-surface-container rounded-lg border border-outline-variant">
-                <p className="text-[10px] font-medium leading-relaxed text-primary-navy/60 italic text-center">
-                  "Map verification ensures demographic accuracy for regional educational reporting."
-                </p>
-              </div>
+                  <span className={cn(
+                    "text-[9px] font-medium",
+                    selectedBranchId === branch.id ? "text-white/70" : "text-primary-navy/40"
+                  )}>
+                    {branch.city}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
+        </div>
 
-          {/* Mobile Branch Selector */}
-          <div className="lg:hidden p-4 bg-white border-b border-outline-variant flex items-center gap-3 overflow-x-auto no-scrollbar">
-            {branches.map(branch => (
-              <button
-                key={branch.id}
-                onClick={() => setSelectedBranchId(branch.id)}
-                className={cn(
-                  "p-3 px-4 rounded-xl border transition-all shrink-0 text-xs font-bold whitespace-nowrap",
-                  selectedBranchId === branch.id 
-                    ? "bg-primary-navy border-primary-navy text-white shadow-lg" 
-                    : "bg-surface border-outline-variant text-primary-navy"
-                )}
-              >
-                {branch.name}
-              </button>
-            ))}
-          </div>
-
+        <div className="flex-1 overflow-hidden">
           {/* Branch Detail Content */}
-          <div className="flex-1 p-4 lg:p-8 overflow-y-auto bg-surface">
+          <div className="h-full p-4 lg:p-8 overflow-y-auto bg-surface">
             {selectedBranch ? (
               <motion.div
                 key={selectedBranch.id}
@@ -299,31 +354,46 @@ export default function BranchDetail() {
                         {branchAdmins.length > 0 ? (
                           branchAdmins.map(admin => (
                             <div key={admin.id} className="px-4 lg:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-surface transition-colors gap-4">
-                              <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-4 flex-1 min-w-0">
                                 <div className="w-10 lg:w-12 h-10 lg:h-12 rounded-full bg-primary-navy/5 flex items-center justify-center font-bold text-primary-navy shrink-0">
                                   {admin.name.split(' ').map(n => n[0]).join('')}
                                 </div>
-                                <div className="flex flex-col min-w-0">
+                                <div className="flex flex-col min-w-0 flex-1">
                                   <span className="text-sm font-bold truncate">{admin.name}</span>
                                   <span className="text-xs text-primary-navy/40 font-medium truncate">{admin.role}</span>
+                                  <span className="text-[10px] text-primary-navy/30 font-medium truncate mt-0.5">{admin.email}</span>
                                 </div>
                               </div>
-                              <div className="flex items-center justify-between sm:justify-end gap-6">
-                                <div className="flex flex-col items-end shrink-0">
+                              <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6">
+                                <div className="flex flex-col items-end shrink-0 gap-1">
                                   <span className={cn(
                                     "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded",
                                     admin.status === 'active' ? "text-emerald-700 bg-emerald-50" : "text-rose-700 bg-rose-50"
                                   )}>
                                     {admin.status}
                                   </span>
+                                  {admin.lastLogin ? (
+                                    <span className="text-[9px] text-primary-navy/30 font-medium">
+                                      Last: {new Date(admin.lastLogin).toLocaleDateString()}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] text-primary-navy/20 font-medium italic">
+                                      Never logged in
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
-                                  <button className="p-2 text-primary-navy/40 hover:text-primary-navy hover:bg-surface-container rounded-lg transition-all active:scale-95">
+                                  <button 
+                                    onClick={() => window.location.href = `mailto:${admin.email}`}
+                                    className="p-2 text-primary-navy/40 hover:text-primary-navy hover:bg-surface-container rounded-lg transition-all active:scale-95"
+                                    title={`Email ${admin.email}`}
+                                  >
                                     <Mail className="w-4 h-4" />
                                   </button>
                                   <button 
                                     onClick={() => handleRemoveAdmin(admin.id)}
                                     className="p-2 text-rose-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all active:scale-95"
+                                    title="Remove admin"
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </button>
@@ -406,119 +476,155 @@ export default function BranchDetail() {
       
       <Modal 
         isOpen={isAddBranchOpen} 
-        onClose={() => setIsAddBranchOpen(false)} 
+        onClose={() => {
+          setIsAddBranchOpen(false);
+          setError(null);
+        }} 
         title="Add Campus Branch"
       >
-        <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+        <form className="space-y-6" onSubmit={handleAddBranch}>
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Branch Name</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Branch Name *</label>
             <input 
-              type="text" 
+              name="name"
+              type="text"
+              required
               placeholder="e.g. South Campus"
               className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Physical Address</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-navy/40" />
-              <input 
-                type="text" 
-                placeholder="Search address for verification..."
-                className="w-full bg-surface-container border border-outline-variant rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
-              />
-            </div>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Physical Address *</label>
+            <input 
+              name="address"
+              type="text"
+              required
+              placeholder="Street address"
+              className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">City</label>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">City *</label>
               <input 
-                type="text" 
-                placeholder="London"
+                name="city"
+                type="text"
+                required
+                placeholder="e.g. Addis Ababa"
                 className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Branch Type</label>
-              <select className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20 appearance-none">
-                <option>Primary School</option>
-                <option>Secondary School</option>
-                <option>Vocational</option>
-                <option>Pre-K</option>
-              </select>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Region</label>
+              <input 
+                name="region"
+                type="text"
+                placeholder="e.g. Addis Ababa"
+                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Contact Phone</label>
+              <input 
+                name="contact_phone"
+                type="tel"
+                placeholder="+251911234567"
+                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Contact Email</label>
+              <input 
+                name="contact_email"
+                type="email"
+                placeholder="branch@school.edu"
+                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+              />
             </div>
           </div>
 
           <div className="h-px bg-outline-variant my-6" />
 
-          <div className="space-y-4">
-            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary-navy/80">Administrative Lead</h4>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Admin Full Name</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Dr. Jane Smith"
-                  className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
-                />
+          <button 
+            type="submit"
+            disabled={submitting}
+            className="w-full bg-primary-navy text-white py-4 rounded-lg font-bold text-sm uppercase tracking-[0.1em] hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Creating Branch...
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Admin Contact Email</label>
-                <input 
-                  type="email" 
-                  placeholder="jane.smith@school.edu"
-                  className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
-                />
-              </div>
-            </div>
-
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <div className="relative flex items-center justify-center">
-                <input type="checkbox" className="peer sr-only" defaultChecked />
-                <div className="w-5 h-5 border-2 border-outline-variant rounded transition-all peer-checked:bg-primary-navy peer-checked:border-primary-navy" />
-                <svg className="absolute w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
-                  <path d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <span className="text-xs font-bold text-primary-navy/60 group-hover:text-primary-navy transition-colors">Send automated invitation email immediately</span>
-            </label>
-          </div>
-
-          <div className="h-40 bg-surface-container rounded-xl border border-outline-variant flex items-center justify-center p-4 text-center">
-            <div className="flex flex-col items-center gap-2">
-              <MapPin className="w-6 h-6 text-primary-navy/20" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/40 italic">Geographic accuracy verification active</span>
-            </div>
-          </div>
-
-          <button className="w-full bg-primary-navy text-white py-4 rounded-lg font-bold text-sm uppercase tracking-[0.1em] hover:opacity-90 transition-opacity">
-            Provision Branch
+            ) : (
+              'Provision Branch'
+            )}
           </button>
         </form>
       </Modal>
 
       <Modal 
         isOpen={isAddAdminOpen} 
-        onClose={() => setIsAddAdminOpen(false)} 
+        onClose={() => {
+          setIsAddAdminOpen(false);
+          setError(null);
+        }} 
         title="Add Branch Administrator"
       >
-        <form className="space-y-6" onSubmit={handleAddAdmin}>
+        <form className="space-y-5" onSubmit={handleAddAdmin}>
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Name *</label>
+              <input 
+                name="name"
+                type="text" 
+                required
+                placeholder="Robert"
+                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Father Name *</label>
+              <input 
+                name="father_name"
+                type="text" 
+                required
+                placeholder="Wilson"
+                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Full Name</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Grandfather Name *</label>
             <input 
-              name="name"
+              name="grandfather_name"
               type="text" 
               required
-              placeholder="e.g. Dr. Robert Wilson"
+              placeholder="James"
               className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Email Address</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Email Address *</label>
             <input 
               name="email"
               type="email" 
@@ -528,31 +634,34 @@ export default function BranchDetail() {
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Administrative Role</label>
-            <select name="role" className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20 appearance-none">
-              <option>Principal</option>
-              <option>Vice Principal</option>
-              <option>Branch Manager</option>
-              <option>Dean of Students</option>
-              <option>Academic Coordinator</option>
-            </select>
-          </div>
+          {/* Hidden field for role_title - default to Branch Administrator */}
+          <input type="hidden" name="role_title" value="Branch Administrator" />
 
-          <div className="p-4 bg-primary-navy/5 rounded-lg border border-primary-navy/10">
+          <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
             <div className="flex gap-3">
-              <Mail className="w-4 h-4 text-primary-navy mt-0.5" />
+              <Mail className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
               <div className="flex flex-col gap-1">
-                <span className="text-xs font-bold text-primary-navy">Invitation Simulation</span>
-                <p className="text-[10px] font-medium text-primary-navy/60 leading-relaxed">
-                  Upon clicking "Send Invitation", an automated onboarding link will be generated and dispatched to the specified email address.
+                <span className="text-xs font-bold text-emerald-900">Invitation Email</span>
+                <p className="text-[10px] font-medium text-emerald-700 leading-relaxed">
+                  An invitation email will be sent to the administrator with instructions to create their account and access the branch management portal.
                 </p>
               </div>
             </div>
           </div>
 
-          <button type="submit" className="w-full bg-primary-navy text-white py-4 rounded-lg font-bold text-sm uppercase tracking-[0.1em] hover:opacity-90 transition-opacity">
-            Send Invitation
+          <button 
+            type="submit" 
+            disabled={submitting}
+            className="w-full bg-primary-navy text-white py-4 rounded-lg font-bold text-sm uppercase tracking-[0.1em] hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Sending Invitation...
+              </div>
+            ) : (
+              'Send Invitation'
+            )}
           </button>
         </form>
       </Modal>

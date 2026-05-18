@@ -16,6 +16,7 @@ export const featureFlags = {
   useRealAuth: parseBool(process.env.NEXT_PUBLIC_FF_REAL_AUTH),
   useRealSchools: parseBool(process.env.NEXT_PUBLIC_FF_REAL_SCHOOLS),
   useRealBranches: parseBool(process.env.NEXT_PUBLIC_FF_REAL_BRANCHES),
+  useRealBranchAdmins: parseBool(process.env.NEXT_PUBLIC_FF_REAL_BRANCH_ADMINS),
   useRealAnalytics: parseBool(process.env.NEXT_PUBLIC_FF_REAL_ANALYTICS),
   useRealBilling: parseBool(process.env.NEXT_PUBLIC_FF_REAL_BILLING),
   useRealSettings: parseBool(process.env.NEXT_PUBLIC_FF_REAL_SETTINGS),

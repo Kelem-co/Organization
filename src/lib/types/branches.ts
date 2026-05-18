@@ -1,35 +1,35 @@
 export interface ApiBranch {
   id: string;
-  schoolId: string;
+  organization: string;
+  school: string;
   name: string;
   address: string;
   city: string;
-  studentCount: number;
-  teacherCount: number;
-  capacity: number;
-  performance: number[];
+  region: string;
+  contact_phone: string;
+  contact_email: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CreateBranchRequest {
-  schoolId: string;
+  organization: string;
+  school: string;
   name: string;
   address: string;
   city: string;
-  capacity: number;
+  region: string;
+  contact_phone: string;
+  contact_email: string;
+  status?: 'ACTIVE' | 'INACTIVE';
 }
 
-export interface ApiAdmin {
-  id: string;
-  branchId: string;
-  name: string;
-  role: string;
-  status: 'active' | 'inactive';
-  email: string;
-}
+export interface UpdateBranchRequest extends Partial<CreateBranchRequest> {}
 
-export interface CreateAdminRequest {
-  branchId: string;
-  name: string;
-  role: string;
-  email: string;
+export interface BranchesListResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: ApiBranch[];
 }

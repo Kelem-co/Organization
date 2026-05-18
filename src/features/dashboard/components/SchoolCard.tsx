@@ -2,13 +2,17 @@
 
 import Link from 'next/link';
 import { School } from '../types';
-import { MapPin, Users, GraduationCap, ChevronRight } from 'lucide-react';
+import { MapPin, Users, Building2, ChevronRight } from 'lucide-react';
 
 interface SchoolCardProps {
   school: School;
+  branchCount?: number;
 }
 
-export default function SchoolCard({ school }: SchoolCardProps) {
+export default function SchoolCard({ school, branchCount = 0 }: SchoolCardProps) {
+  // Truncate ID to first 5 characters
+  const truncatedId = school.id.substring(0, 5) + '...';
+
   return (
     <Link 
       href={`/school/${school.id}`}
@@ -35,8 +39,11 @@ export default function SchoolCard({ school }: SchoolCardProps) {
       <div className="p-6 flex flex-col flex-1">
         <div className="flex items-start justify-between gap-4 mb-4">
           <h3 className="font-bold text-lg leading-tight group-hover:text-primary-navy transition-colors">{school.name}</h3>
-          <span className="bg-surface-container px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest text-primary-navy whitespace-nowrap">
-            ID: {school.id}
+          <span 
+            className="bg-surface-container px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest text-primary-navy whitespace-nowrap"
+            title={`Full ID: ${school.id}`}
+          >
+            ID: {truncatedId}
           </span>
         </div>
         
@@ -48,10 +55,10 @@ export default function SchoolCard({ school }: SchoolCardProps) {
           
           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-outline-variant">
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/40">Students</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/40">Branches</span>
               <div className="flex items-center gap-2 mt-1">
-                <GraduationCap className="w-4 h-4 text-primary-navy" />
-                <span className="font-bold text-sm tracking-tight">{school.studentCount.toLocaleString()}</span>
+                <Building2 className="w-4 h-4 text-primary-navy" />
+                <span className="font-bold text-sm tracking-tight">{branchCount}</span>
               </div>
             </div>
             <div className="flex flex-col">

@@ -1,5 +1,5 @@
 import { apiRequest } from '../api/client';
-import type { OrganizationsResponse, Organization } from '../types/organizations';
+import type { OrganizationsResponse, Organization, UpdateOrganizationRequest } from '../types/organizations';
 
 export interface CreateOrganizationRequest {
   name: string;
@@ -35,6 +35,15 @@ export const organizationsApi = {
     const res = await apiRequest<Organization>({
       method: 'GET',
       path: `/api/organizations/${id}/`,
+    });
+    return res.data;
+  },
+
+  async update(id: string, data: UpdateOrganizationRequest): Promise<Organization> {
+    const res = await apiRequest<Organization>({
+      method: 'PUT',
+      path: `/api/organizations/${id}/`,
+      body: data,
     });
     return res.data;
   },

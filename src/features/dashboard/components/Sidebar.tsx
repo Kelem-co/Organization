@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -72,11 +72,21 @@ export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => v
     fetchSchools();
   }, []);
 
-  const handleSignOut = () => {
-    logout();
-    setIsProfileOpen(false);
+  const handleSchoolSelect = (school: ApiSchool) => {
+    setActiveSchool(school);
+    setIsOpen(false);
+    // Navigate to the selected school's detail page
+    router.push(`/school/${school.id}`);
     onNavClick?.();
-    router.replace('/onboarding');
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await logout();
+      router.push('/login');
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
   };
 
   const navItems = [
@@ -147,11 +157,7 @@ export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => v
                   {schools.map((school) => (
                     <button
                       key={school.id}
-                      onClick={() => {
-                        setActiveSchool(school);
-                        setIsOpen(false);
-                        onNavClick?.();
-                      }}
+                      onClick={() => handleSchoolSelect(school)}
                       className={cn(
                         "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors",
                         activeSchool?.id === school.id ? "bg-surface-container" : "hover:bg-surface"

@@ -1,11 +1,19 @@
 import { apiRequest } from '../api/client';
-import type { ApiBranch, ApiAdmin, CreateBranchRequest, CreateAdminRequest } from '../types/branches';
+import type { ApiBranch, CreateBranchRequest, UpdateBranchRequest, BranchesListResponse } from '../types/branches';
 
 export const branchesApi = {
-  async listBySchool(schoolId: string): Promise<ApiBranch[]> {
-    const res = await apiRequest<ApiBranch[]>({
+  async list(): Promise<BranchesListResponse> {
+    const res = await apiRequest<BranchesListResponse>({
       method: 'GET',
-      path: `/schools/${schoolId}/branches`,
+      path: '/api/branches/',
+    });
+    return res.data;
+  },
+
+  async get(branchId: string): Promise<ApiBranch> {
+    const res = await apiRequest<ApiBranch>({
+      method: 'GET',
+      path: `/api/branches/${branchId}/`,
     });
     return res.data;
   },
@@ -13,33 +21,46 @@ export const branchesApi = {
   async create(data: CreateBranchRequest): Promise<ApiBranch> {
     const res = await apiRequest<ApiBranch>({
       method: 'POST',
-      path: `/schools/${data.schoolId}/branches`,
+      path: '/api/branches/',
       body: data,
     });
     return res.data;
   },
 
-  async listAdmins(branchId: string): Promise<ApiAdmin[]> {
-    const res = await apiRequest<ApiAdmin[]>({
-      method: 'GET',
-      path: `/branches/${branchId}/admins`,
+  async update(branchId: string, data: UpdateBranchRequest): Promise<ApiBranch> {
+    const res = await apiRequest<ApiBranch>({
+      method: 'PATCH',
+      path: `/api/branches/${branchId}/`,
+      body: data,
     });
     return res.data;
   },
 
-  async createAdmin(data: CreateAdminRequest): Promise<ApiAdmin> {
-    const res = await apiRequest<ApiAdmin>({
-      method: 'POST',
-      path: `/branches/${data.branchId}/admins`,
-      body: data,
+  async delete(branchId: string): Promise<void> {
+    await apiRequest<void>({
+      method: 'DELETE',
+      path: `/api/branches/${branchId}/`,
     });
-    return res.data;
+  },
+
+  // Legacy methods for backward compatibility (will be removed)
+  async listBySchool(schoolId: string): Promise<ApiBranch[]> {
+    // This is a mock implementation until the backend provides this endpoint
+    const response = await this.list();
+    return response.results.filter(branch => branch.school === schoolId);
+  },
+
+  async listAdmins(branchId: string): Promise<any[]> {
+    // Mock implementation - will be replaced with real API
+    return [];
+  },
+
+  async createAdmin(data: any): Promise<any> {
+    // Mock implementation - will be replaced with real API
+    return {};
   },
 
   async deleteAdmin(branchId: string, adminId: string): Promise<void> {
-    await apiRequest<void>({
-      method: 'DELETE',
-      path: `/branches/${branchId}/admins/${adminId}`,
-    });
+    // Mock implementation - will be replaced with real API
   },
 };

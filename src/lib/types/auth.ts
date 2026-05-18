@@ -11,6 +11,7 @@ export interface RegisterRequest {
   grandfather_name: string;
   phone_number?: string;
   address?: string;
+  role?: string; // ORGANIZATION role for organization owners
 }
 
 export interface JWTResponse {

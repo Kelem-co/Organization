@@ -29,3 +29,15 @@ export interface OrganizationsResponse {
   previous: string | null;
   results: Organization[];
 }
+
+export interface UpdateOrganizationRequest {
+  name?: string;
+  trade_name?: string;
+  tin_number?: string;
+  license_no?: string;
+  client_full_name?: string;
+  business_address?: string;
+  business_phone_number?: string;
+  client_phone_number?: string;
+  business_license_image?: string; // UUID of uploaded media file
+}
