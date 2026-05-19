@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '@/lib/services/authApi';
+import { formatAuthError } from '@/lib/utils/errorMessages';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -27,12 +28,7 @@ export default function ForgotPasswordPage() {
       await authApi.resetPassword({ email: emailValue });
       setSuccess(true);
     } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'normalized' in err) {
-        const apiError = err as { normalized: { message: string } };
-        setError(apiError.normalized.message);
-      } else {
-        setError('Failed to send reset email. Please try again.');
-      }
+      setError(formatAuthError(err));
     } finally {
       setLoading(false);
     }

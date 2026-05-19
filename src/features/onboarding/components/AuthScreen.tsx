@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from 'react';
-import { Mail, Lock, CheckCircle2, Phone, MapPin } from 'lucide-react';
+import { Mail, Lock, CheckCircle2, Phone, MapPin, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authApi } from '@/lib/services/authApi';
 import { featureFlags } from '@/config/featureFlags';
 import { LegalModal, TermsOfService, PrivacyPolicy } from '@/components/LegalModal';
+import { formatAuthError, validatePassword } from '@/lib/utils/errorMessages';
 
 interface AuthScreenProps {
   onSuccess: () => void;
@@ -17,6 +18,8 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -35,13 +38,15 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
 
     // Validation
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('Passwords do not match. Please make sure both passwords are identical.');
       setLoading(false);
       return;
     }
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+    // Validate password strength
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      setError(passwordValidation.errors.join('. '));
       setLoading(false);
       return;
     }
@@ -67,16 +72,7 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
         onSuccess();
       }
     } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'normalized' in err) {
-        const apiError = err as { normalized: { message: string; fieldErrors?: Array<{ field: string; message: string }> } };
-        if (apiError.normalized.fieldErrors && apiError.normalized.fieldErrors.length > 0) {
-          setError(apiError.normalized.fieldErrors.map(e => `${e.field}: ${e.message}`).join(', '));
-        } else {
-          setError(apiError.normalized.message);
-        }
-      } else {
-        setError(err instanceof Error ? err.message : 'Registration failed');
-      }
+      setError(formatAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -235,11 +231,22 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
                   <input
                     id="password"
                     name="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     placeholder="••••••••"
-                    className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-navy focus:border-transparent transition-all text-sm"
+                    className="w-full pl-9 pr-11 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-navy focus:border-transparent transition-all text-sm"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
               </div>
 
@@ -252,11 +259,22 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
                   <input
                     id="confirmPassword"
                     name="confirmPassword"
-                    type="password"
+                    type={showConfirmPassword ? 'text' : 'password'}
                     required
                     placeholder="••••••••"
-                    className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-navy focus:border-transparent transition-all text-sm"
+                    className="w-full pl-9 pr-11 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-navy focus:border-transparent transition-all text-sm"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
               </div>
 

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Lock, CheckCircle2, Building2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { authApi } from '@/lib/services/authApi';
+import { formatAuthError, validatePassword } from '@/lib/utils/errorMessages';
 
 export default function ResetPasswordPage() {
   const params = useParams();
@@ -29,8 +30,10 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters');
+    // Validate password strength
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.valid) {
+      setError(passwordValidation.errors.join('. '));
       setLoading(false);
       return;
     }
@@ -51,12 +54,7 @@ export default function ResetPasswordPage() {
         router.push('/login?reset=true');
       }, 3000);
     } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'normalized' in err) {
-        const apiError = err as { normalized: { message: string } };
-        setError(apiError.normalized.message);
-      } else {
-        setError('Failed to reset password. The link may be invalid or expired.');
-      }
+      setError(formatAuthError(err));
     } finally {
       setLoading(false);
     }

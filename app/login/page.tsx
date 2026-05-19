@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, type FormEvent, useEffect } from 'react';
-import { Mail, Lock, LogIn } from 'lucide-react';
+import { Mail, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { LegalModal, TermsOfService, PrivacyPolicy } from '@/components/LegalModal';
+import { formatAuthError } from '@/lib/utils/errorMessages';
 
 export default function LoginPage() {
   const { directLogin, hydrated, isAuthenticated, onboardingComplete, completeOnboarding } = useAuth();
@@ -17,6 +18,7 @@ export default function LoginPage() {
   const [checkingOrgs, setCheckingOrgs] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const activated = searchParams.get('activated') === 'true';
   const reset = searchParams.get('reset') === 'true';
 
@@ -56,16 +58,7 @@ export default function LoginPage() {
         router.push('/');
       }
     } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'normalized' in err) {
-        const apiError = err as { normalized: { message: string; fieldErrors?: Array<{ field: string; message: string }> } };
-        if (apiError.normalized.fieldErrors && apiError.normalized.fieldErrors.length > 0) {
-          setError(apiError.normalized.fieldErrors.map(e => `${e.field}: ${e.message}`).join(', '));
-        } else {
-          setError(apiError.normalized.message);
-        }
-      } else {
-        setError(err instanceof Error ? err.message : 'Login failed');
-      }
+      setError(formatAuthError(err));
       setCheckingOrgs(false);
     } finally {
       setLoading(false);
@@ -169,11 +162,22 @@ export default function LoginPage() {
                   <input
                     id="password"
                     name="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     placeholder="••••••••"
-                    className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-navy focus:border-transparent transition-all"
+                    className="w-full pl-10 pr-12 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-navy focus:border-transparent transition-all"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
                 </div>
               </div>
 

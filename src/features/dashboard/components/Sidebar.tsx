@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useOrganizationContext } from '@/context/OrganizationContext';
+import { organizationsApi } from '@/lib/services/organizationsApi';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutGrid, 
@@ -27,13 +29,22 @@ export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => v
   const router = useRouter();
   const pathname = usePathname();
   const { logout } = useAuth();
+  const { organization } = useOrganizationContext();
   const [isOpen, setIsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [schools, setSchools] = useState<ApiSchool[]>([]);
   const [activeSchool, setActiveSchool] = useState<ApiSchool | null>(null);
   const [loadingSchools, setLoadingSchools] = useState(true);
+  const fetchedSchoolsRef = useRef(false); // Prevent double-fetch
+  
+  // Get owner name from organization context
+  const ownerName = organization?.client_full_name || organization?.name || 'Admin User';
 
   useEffect(() => {
+    // Prevent double-fetch in React Strict Mode
+    if (fetchedSchoolsRef.current) return;
+    fetchedSchoolsRef.current = true;
+    
     const fetchSchools = async () => {
       if (!featureFlags.useRealSchools) {
         setLoadingSchools(false);
@@ -70,7 +81,7 @@ export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => v
     };
 
     fetchSchools();
-  }, []);
+  }, []); // Empty dependency array - only run once
 
   const handleSchoolSelect = (school: ApiSchool) => {
     setActiveSchool(school);
@@ -259,7 +270,7 @@ export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => v
                       />
                     </div>
                     <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-bold text-primary-navy truncate">Admin User</span>
+                      <span className="text-sm font-bold text-primary-navy truncate">{ownerName}</span>
                       <span className="text-[10px] font-bold text-primary-navy/40 uppercase tracking-tight">Org. Owner</span>
                     </div>
                   </div>
@@ -319,13 +330,13 @@ export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => v
           </div>
           {!isMobile && (
             <div className="flex flex-col min-w-0 text-left">
-              <span className="text-[13px] font-bold text-primary-navy truncate group-hover:text-black transition-colors">Admin User</span>
+              <span className="text-[13px] font-bold text-primary-navy truncate group-hover:text-black transition-colors">{ownerName}</span>
               <span className="text-[10px] font-bold text-primary-navy/40 uppercase tracking-tight">Organization Owner</span>
             </div>
           )}
           {isMobile && (
              <div className="flex flex-col min-w-0 text-left flex-1">
-              <span className="text-[13px] font-bold text-primary-navy truncate">Admin User</span>
+              <span className="text-[13px] font-bold text-primary-navy truncate">{ownerName}</span>
               <span className="text-[10px] font-bold text-primary-navy/40 uppercase tracking-tight">Organization Owner</span>
             </div>
           )}
