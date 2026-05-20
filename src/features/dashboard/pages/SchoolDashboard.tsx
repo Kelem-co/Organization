@@ -12,7 +12,6 @@ import { motion } from 'motion/react';
 import { deleteQueuedMedia } from '@/lib/media/deleteQueuedMedia';
 import { organizationsApi } from '@/lib/services/organizationsApi';
 import { branchesApi } from '@/lib/services/branchesApi';
-import { featureFlags } from '@/config/featureFlags';
 import { normalizeCountryName, normalizeOptionalPhoneNumber } from '@/lib/utils/contactValidation';
 import type { Organization } from '@/lib/types/organizations';
 import type { CreateSchoolRequest, UpdateSchoolRequest } from '@/lib/types/schools';
@@ -73,11 +72,6 @@ export default function SchoolDashboard() {
 
   useEffect(() => {
     const fetchOrganizations = async () => {
-      if (!featureFlags.useRealOnboarding) {
-        setLoading(false);
-        return;
-      }
-
       try {
         setLoading(true);
         const response = await organizationsApi.list();
@@ -111,7 +105,7 @@ export default function SchoolDashboard() {
   // Fetch branch counts for each school
   useEffect(() => {
     const fetchBranchCounts = async () => {
-      if (!featureFlags.useRealBranches || schools.length === 0) {
+      if (schools.length === 0) {
         return;
       }
 

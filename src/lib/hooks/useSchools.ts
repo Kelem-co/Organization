@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { featureFlags } from '@/config/featureFlags';
-import { schoolsApi } from '@/lib/services/schoolsApi';
 import { resolveMediaUrl } from '@/lib/media/resolveMediaUrl';
-import { MOCK_SCHOOLS } from '@/features/dashboard/constants';
 import { getSchoolAvatarUrl } from '@/lib/utils/schoolAvatar';
+import { schoolsApi } from '@/lib/services/schoolsApi';
 import type { School } from '@/features/dashboard/types';
 import type { ApiSchool, CreateSchoolRequest, UpdateSchoolRequest } from '@/lib/types/schools';
 
@@ -30,16 +28,11 @@ async function mapApiSchoolToSchool(apiSchool: ApiSchool): Promise<School> {
 }
 
 export function useSchools() {
-  const [schools, setSchools] = useState<School[]>(() => (
-    featureFlags.useRealSchools ? [] : MOCK_SCHOOLS
-  ));
-  const [loading, setLoading] = useState(featureFlags.useRealSchools);
+  const [schools, setSchools] = useState<School[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!featureFlags.useRealSchools) {
-      return;
-    }
 
     let cancelled = false;
 
@@ -84,25 +77,6 @@ export function useSchools() {
   }, []);
 
   const addSchool = useCallback(async (schoolData: CreateSchoolRequest) => {
-    if (!featureFlags.useRealSchools) {
-      const mockSchool: School = {
-        id: `s${Date.now()}`,
-        name: schoolData.name,
-        logo: getSchoolAvatarUrl(schoolData.name),
-        logoMediaId: schoolData.logo ?? null,
-        location: schoolData.country,
-        studentCount: 0,
-        staffCount: 0,
-        description: schoolData.description || '',
-        website: schoolData.website || '',
-        organizationId: schoolData.organization,
-        contactEmail: schoolData.contact_email,
-        contactPhone: schoolData.contact_phone || '',
-        status: schoolData.status || 'ACTIVE',
-      };
-      setSchools((prev) => [mockSchool, ...prev]);
-      return mockSchool;
-    }
 
     try {
       const created = await schoolsApi.create(schoolData);
@@ -116,45 +90,6 @@ export function useSchools() {
   }, []);
 
   const updateSchool = useCallback(async (schoolId: string, schoolData: UpdateSchoolRequest) => {
-    if (!featureFlags.useRealSchools) {
-      const nextLogoUrl = schoolData.logo
-        ? await resolveMediaUrl(schoolData.logo)
-        : null;
-      let updatedSchool: School | null = null;
-
-      setSchools((prev) => prev.map((school) => {
-        if (school.id !== schoolId) {
-          return school;
-        }
-
-        updatedSchool = {
-          ...school,
-          name: schoolData.name ?? school.name,
-          location: schoolData.country ?? school.location,
-          description: schoolData.description ?? school.description,
-          website: schoolData.website ?? school.website,
-          contactEmail: schoolData.contact_email ?? school.contactEmail,
-          contactPhone: schoolData.contact_phone ?? school.contactPhone,
-          organizationId: schoolData.organization ?? school.organizationId,
-          status: schoolData.status ?? school.status,
-          logoMediaId: schoolData.logo === undefined ? school.logoMediaId : schoolData.logo,
-          logo:
-            schoolData.logo === undefined
-              ? school.logo
-              : schoolData.logo
-                ? nextLogoUrl || getSchoolAvatarUrl(schoolData.name ?? school.name)
-                : getSchoolAvatarUrl(schoolData.name ?? school.name),
-        };
-
-        return updatedSchool;
-      }));
-
-      if (!updatedSchool) {
-        throw new Error('School not found');
-      }
-
-      return updatedSchool;
-    }
 
     try {
       const updated = await schoolsApi.update(schoolId, schoolData);

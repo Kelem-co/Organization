@@ -11,7 +11,6 @@ import Layout from '../components/Layout';
 import { useBranchDetail } from '@/lib/hooks/useBranchDetail';
 import { branchAdminsApi } from '@/lib/services/branchAdminsApi';
 import type { UpdateBranchRequest } from '@/lib/types/branches';
-import { featureFlags } from '@/config/featureFlags';
 import { normalizeOptionalPhoneNumber } from '@/lib/utils/contactValidation';
 import { 
   Users, 
@@ -67,8 +66,7 @@ export default function BranchDetail() {
   const branchAdmins = useMemo(() => {
     if (!activeBranchId) return [];
     
-    // Use real branch admins when using real branches
-    if (featureFlags.useRealBranches && branchAdminsMap[activeBranchId]) {
+    if (branchAdminsMap[activeBranchId]) {
       const adminsData = branchAdminsMap[activeBranchId];
       
       // Ensure it's an array before mapping
@@ -89,9 +87,8 @@ export default function BranchDetail() {
       }));
     }
     
-    // Fallback to mock admins
-    return admins.filter(a => a.branchId === activeBranchId);
-  }, [activeBranchId, admins, branchAdminsMap]);
+    return [];
+  }, [activeBranchId, branchAdminsMap]);
 
   const handleRemoveAdmin = (adminId: string) => {
     setAdmins(prev => prev.filter(a => a.id !== adminId));
@@ -190,9 +187,7 @@ export default function BranchDetail() {
       (e.target as HTMLFormElement).reset();
       
       // Refresh the branch admins list
-      if (featureFlags.useRealBranches) {
-        await refreshBranchAdmins(activeBranchId);
-      }
+      await refreshBranchAdmins(activeBranchId);
       
       // Show success message
       console.log('Invitation sent successfully to', formData.get('email'));

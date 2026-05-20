@@ -5,7 +5,6 @@ import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authApi } from '@/lib/services/authApi';
-import { featureFlags } from '@/config/featureFlags';
 import { PhoneNumberField } from '@/components/PhoneNumberField';
 import { LegalModal, TermsOfService, PrivacyPolicy } from '@/components/LegalModal';
 import { normalizeOptionalPhoneNumber } from '@/lib/utils/contactValidation';
@@ -57,25 +56,20 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
     try {
       const normalizedPhoneNumber = normalizeOptionalPhoneNumber(phoneNumber, 'Phone number');
 
-      if (featureFlags.useRealAuth) {
-        // Register user with ORGANIZATION role
-        await authApi.register({
-          email,
-          password,
-          name,
-          father_name: fatherName,
-          grandfather_name: grandfatherName,
-          phone_number: normalizedPhoneNumber || undefined,
-          address: address || undefined,
-          role: 'ORGANIZATION', // Add role for organization owners
-        });
-        
-        // Redirect to check email page
-        router.push(`/check-email?email=${encodeURIComponent(email)}`);
-      } else {
-        // Mock flow - skip email verification
-        onSuccess();
-      }
+      // Register user with ORGANIZATION role
+      await authApi.register({
+        email,
+        password,
+        name,
+        father_name: fatherName,
+        grandfather_name: grandfatherName,
+        phone_number: normalizedPhoneNumber || undefined,
+        address: address || undefined,
+        role: 'ORGANIZATION', // Add role for organization owners
+      });
+      
+      // Redirect to check email page
+      router.push(`/check-email?email=${encodeURIComponent(email)}`);
     } catch (err: unknown) {
       setError(formatAuthError(err));
     } finally {
@@ -145,7 +139,7 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
                     name="name"
                     type="text"
                     required
-                    placeholder="Robi"
+                    placeholder="Abebe"
                     className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-navy focus:border-transparent transition-all text-sm"
                   />
                 </div>
@@ -190,7 +184,7 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
                     name="email"
                     type="email"
                     required
-                    placeholder="robi@robi.work"
+                    placeholder="abebe@robi.work"
                     className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-navy focus:border-transparent transition-all text-sm"
                   />
                 </div>

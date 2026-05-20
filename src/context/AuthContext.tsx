@@ -9,7 +9,6 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
-import { featureFlags } from '@/config/featureFlags';
 import { authApi } from '@/lib/services/authApi';
 import { tokenManager } from '@/lib/api/tokenManager';
 import { cacheManager } from '@/lib/api/cache';
@@ -56,20 +55,16 @@ function writeStoredAuth(state: AuthState) {
 function getInitialAuthState(): AuthState {
   if (typeof window === 'undefined') return defaultAuth;
 
-  if (featureFlags.useRealAuth) {
-    const session = tokenManager.getSession();
-    if (session && !tokenManager.isTokenExpired()) {
-      return {
-        isAuthenticated: true,
-        onboardingComplete: session.onboardingComplete,
-        user: { email: session.email, id: session.userId },
-      };
-    }
-
-    return defaultAuth;
+  const session = tokenManager.getSession();
+  if (session && !tokenManager.isTokenExpired()) {
+    return {
+      isAuthenticated: true,
+      onboardingComplete: session.onboardingComplete,
+      user: { email: session.email, id: session.userId },
+    };
   }
 
-  return readStoredAuth();
+  return defaultAuth;
 }
 
 // ─── Context types ────────────────────────────────────────────────────────────
@@ -96,9 +91,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const persist = useCallback((next: AuthState) => {
     setAuth(next);
-    if (!featureFlags.useRealAuth) {
-      writeStoredAuth(next);
-    }
   }, []);
 
   // ── login (used by onboarding AuthScreen — sets onboardingComplete: false) ──
@@ -106,42 +98,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string) => {
       if (!email || !password) throw new Error('Email and password are required');
 
-      if (featureFlags.useRealAuth) {
-        // Call JWT create endpoint
-        const jwtResponse = await authApi.login({ email, password });
-        
-        // Store tokens
-        tokenManager.setAccessToken(jwtResponse.access);
-        tokenManager.setRefreshToken(jwtResponse.refresh);
-        
-        // JWT tokens typically expire in 5 minutes
-        const expiresAt = Date.now() + 4 * 60 * 1000;
-        
-        // Store session
-        tokenManager.setSession({
-          userId: '',
-          email: email,
-          name: '',
-          expiresAt,
-          onboardingComplete: false, // Onboarding flow starts after login
-        });
-        
-        setAuth({
-          isAuthenticated: true,
-          onboardingComplete: false,
-          user: { email, id: '', name: '' },
-        });
-      } else {
-        // Mock: simulate network delay
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        persist({
-          isAuthenticated: true,
-          onboardingComplete: false,
-          user: { email },
-        });
-      }
+      // Call JWT create endpoint
+      const jwtResponse = await authApi.login({ email, password });
+      
+      // Store tokens
+      tokenManager.setAccessToken(jwtResponse.access);
+      tokenManager.setRefreshToken(jwtResponse.refresh);
+      
+      // JWT tokens typically expire in 5 minutes
+      const expiresAt = Date.now() + 4 * 60 * 1000;
+      
+      // Store session
+      tokenManager.setSession({
+        userId: '',
+        email: email,
+        name: '',
+        expiresAt,
+        onboardingComplete: false, // Onboarding flow starts after login
+      });
+      
+      setAuth({
+        isAuthenticated: true,
+        onboardingComplete: false,
+        user: { email, id: '', name: '' },
+      });
     },
-    [persist],
+    [],
   );
 
   // ── directLogin (used by /login page — sets onboardingComplete: true) ────────
@@ -149,43 +131,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string) => {
       if (!email || !password) throw new Error('Email and password are required');
 
-      if (featureFlags.useRealAuth) {
-        // Call JWT create endpoint
-        const jwtResponse = await authApi.login({ email, password });
-        
-        // Store tokens
-        tokenManager.setAccessToken(jwtResponse.access);
-        tokenManager.setRefreshToken(jwtResponse.refresh);
-        
-        // JWT tokens typically expire in 5 minutes, set expiration to 4 min for safety
-        const expiresAt = Date.now() + 4 * 60 * 1000;
-        
-        // Store session - DON'T set onboardingComplete yet, let the login page decide
-        tokenManager.setSession({
-          userId: '', // We'll get this later if needed
-          email: email,
-          name: '',
-          expiresAt,
-          onboardingComplete: false, // Will be set to true after org check
-        });
-        
-        // Update auth state - onboardingComplete is false initially
-        setAuth({
-          isAuthenticated: true,
-          onboardingComplete: false,
-          user: { email, id: '', name: '' },
-        });
-      } else {
-        // Mock: simulate network delay
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        persist({
-          isAuthenticated: true,
-          onboardingComplete: true,
-          user: { email },
-        });
-      }
+      // Call JWT create endpoint
+      const jwtResponse = await authApi.login({ email, password });
+      
+      // Store tokens
+      tokenManager.setAccessToken(jwtResponse.access);
+      tokenManager.setRefreshToken(jwtResponse.refresh);
+      
+      // JWT tokens typically expire in 5 minutes, set expiration to 4 min for safety
+      const expiresAt = Date.now() + 4 * 60 * 1000;
+      
+      // Store session - DON'T set onboardingComplete yet, let the login page decide
+      tokenManager.setSession({
+        userId: '', // We'll get this later if needed
+        email: email,
+        name: '',
+        expiresAt,
+        onboardingComplete: false, // Will be set to true after org check
+      });
+      
+      // Update auth state - onboardingComplete is false initially
+      setAuth({
+        isAuthenticated: true,
+        onboardingComplete: false,
+        user: { email, id: '', name: '' },
+      });
     },
-    [persist],
+    [],
   );
 
   const completeOnboarding = useCallback(() => {
@@ -195,27 +167,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: true,
         onboardingComplete: true,
       };
-      if (!featureFlags.useRealAuth) {
-        writeStoredAuth(next);
-      } else {
-        // Update session metadata
-        const session = tokenManager.getSession();
-        if (session) {
-          tokenManager.setSession({ ...session, onboardingComplete: true });
-        }
+      
+      // Update session metadata
+      const session = tokenManager.getSession();
+      if (session) {
+        tokenManager.setSession({ ...session, onboardingComplete: true });
       }
       return next;
     });
   }, []);
 
   const logout = useCallback(async () => {
-    if (featureFlags.useRealAuth) {
-      // JWT logout is client-side only (no backend endpoint needed)
-      tokenManager.clearTokens();
-      cacheManager.clear();
-    } else {
-      writeStoredAuth({ ...defaultAuth });
-    }
+    // JWT logout is client-side only (no backend endpoint needed)
+    tokenManager.clearTokens();
+    cacheManager.clear();
     setAuth({ ...defaultAuth });
   }, []);
 

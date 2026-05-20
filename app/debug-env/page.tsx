@@ -1,7 +1,6 @@
 'use client';
 
 import { appConfig } from '@/lib/api/config';
-import { featureFlags } from '@/config/featureFlags';
 
 export default function DebugEnvPage() {
   return (
@@ -27,19 +26,6 @@ export default function DebugEnvPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Feature Flags</h2>
-          <div className="space-y-2 font-mono text-sm">
-            {Object.entries(featureFlags).map(([key, value]) => (
-              <div key={key} className="flex justify-between">
-                <span className="text-gray-600">{key}:</span>
-                <span className={`font-bold ${value ? 'text-green-600' : 'text-red-600'}`}>
-                  {value ? 'ENABLED' : 'DISABLED'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
 
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Raw Environment Variables</h2>

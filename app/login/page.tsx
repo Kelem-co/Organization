@@ -41,22 +41,15 @@ export default function LoginPage() {
     try {
       await directLogin(email, password);
       
-      const { featureFlags } = await import('@/config/featureFlags');
+      const { organizationsApi } = await import('@/lib/services/organizationsApi');
+      const orgsResponse = await organizationsApi.list();
       
-      if (featureFlags.useRealOnboarding) {
-        const { organizationsApi } = await import('@/lib/services/organizationsApi');
-        const orgsResponse = await organizationsApi.list();
-        
-        if (orgsResponse.results.length > 0) {
-          completeOnboarding();
-          await new Promise(resolve => setTimeout(resolve, 100));
-          router.push('/');
-        } else {
-          router.push('/onboarding');
-        }
-      } else {
+      if (orgsResponse.results.length > 0) {
         completeOnboarding();
+        await new Promise(resolve => setTimeout(resolve, 100));
         router.push('/');
+      } else {
+        router.push('/onboarding');
       }
     } catch (err: unknown) {
       setError(formatAuthError(err));
