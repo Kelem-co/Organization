@@ -1,26 +1,75 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import SchoolCard from '../components/SchoolCard';
 import Modal from '../components/Modal';
 import { useSchools } from '@/lib/hooks/useSchools';
 import { MediaUploader } from '@/components/MediaUploader';
+import type { MediaUploaderState } from '@/components/MediaUploader';
+import { CountrySearchInput } from '@/components/CountrySearchInput';
+import { PhoneNumberField } from '@/components/PhoneNumberField';
 import { ShieldCheck, School, Plus } from 'lucide-react';
 import { motion } from 'motion/react';
+import { deleteQueuedMedia } from '@/lib/media/deleteQueuedMedia';
 import { organizationsApi } from '@/lib/services/organizationsApi';
 import { branchesApi } from '@/lib/services/branchesApi';
 import { featureFlags } from '@/config/featureFlags';
+import { normalizeCountryName, normalizeOptionalPhoneNumber } from '@/lib/utils/contactValidation';
 import type { Organization } from '@/lib/types/organizations';
-import type { CreateSchoolRequest } from '@/lib/types/schools';
+import type { CreateSchoolRequest, UpdateSchoolRequest } from '@/lib/types/schools';
+import type { School as DashboardSchool } from '../types';
 
 export default function SchoolDashboard() {
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const { schools, addSchool, loading: schoolsLoading, error: schoolsError } = useSchools();
+  const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
+  const [editingSchool, setEditingSchool] = useState<DashboardSchool | null>(null);
+  const { schools, addSchool, updateSchool, loading: schoolsLoading, error: schoolsError } = useSchools();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [branchCounts, setBranchCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [uploadedLogoId, setUploadedLogoId] = useState<string | null>(null);
+  const [mediaBusy, setMediaBusy] = useState(false);
+  const [uploadedLogoId, setUploadedLogoId] = useState<string | null | undefined>(undefined);
+  const [pendingLogoDeletionIds, setPendingLogoDeletionIds] = useState<string[]>([]);
+  const [country, setCountry] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+
+  const closeSchoolModal = () => {
+    setIsSchoolModalOpen(false);
+    setEditingSchool(null);
+    setError(null);
+    setUploadedLogoId(undefined);
+    setPendingLogoDeletionIds([]);
+    setMediaBusy(false);
+    setCountry('');
+    setContactPhone('');
+  };
+
+  const openAddModal = () => {
+    setEditingSchool(null);
+    setError(null);
+    setUploadedLogoId(undefined);
+    setPendingLogoDeletionIds([]);
+    setMediaBusy(false);
+    setCountry('');
+    setContactPhone('');
+    setIsSchoolModalOpen(true);
+  };
+
+  const openEditModal = (school: DashboardSchool) => {
+    setEditingSchool(school);
+    setError(null);
+    setUploadedLogoId(undefined);
+    setPendingLogoDeletionIds([]);
+    setMediaBusy(false);
+    setCountry(school.location);
+    setContactPhone(school.contactPhone || '');
+    setIsSchoolModalOpen(true);
+  };
+
+  const handleLogoStateChange = ({ hasChanges, mediaId, pendingRemovalIds }: MediaUploaderState) => {
+    setUploadedLogoId(hasChanges ? mediaId : undefined);
+    setPendingLogoDeletionIds(pendingRemovalIds);
+  };
 
   useEffect(() => {
     const fetchOrganizations = async () => {
@@ -85,42 +134,73 @@ export default function SchoolDashboard() {
     fetchBranchCounts();
   }, [schools]);
 
-  const handleAddSchool = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSchoolSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
-    if (organizations.length === 0) {
+
+    if (!editingSchool && organizations.length === 0) {
       setError('No organization found. Please complete onboarding to create an organization first.');
       return;
     }
 
-    const formData = new FormData(e.currentTarget);
-    
-    const schoolData: CreateSchoolRequest = {
-      organization: organizations[0].id, // Use the first organization
-      name: formData.get('name') as string,
-      description: formData.get('description') as string || '',
-      country: formData.get('country') as string,
-      contact_email: formData.get('contact_email') as string,
-      contact_phone: formData.get('contact_phone') as string || '',
-      website: formData.get('website') as string || '',
-      status: 'ACTIVE',
-    };
-
-    // Add logo if uploaded
-    if (uploadedLogoId) {
-      schoolData.logo = uploadedLogoId;
+    if (mediaBusy) {
+      setError('Please wait for the logo upload to finish before saving.');
+      return;
     }
 
     try {
       setSubmitting(true);
       setError(null);
-      await addSchool(schoolData);
-      setIsAddModalOpen(false);
-      // Reset form and uploaded logo
+
+      const formData = new FormData(e.currentTarget);
+      const normalizedCountry = normalizeCountryName(String(formData.get('country') ?? ''));
+      const normalizedPhone = normalizeOptionalPhoneNumber(
+        String(formData.get('contact_phone') ?? ''),
+        'School contact phone'
+      );
+      const name = String(formData.get('name') ?? '');
+      const description = String(formData.get('description') ?? '');
+      const contactEmail = String(formData.get('contact_email') ?? '');
+      const website = String(formData.get('website') ?? '');
+
+      if (editingSchool) {
+        const schoolData: UpdateSchoolRequest = {
+          name,
+          description,
+          country: normalizedCountry,
+          contact_email: contactEmail,
+          contact_phone: normalizedPhone,
+          website,
+        };
+
+        if (uploadedLogoId !== undefined) {
+          schoolData.logo = uploadedLogoId;
+        }
+
+        await updateSchool(editingSchool.id, schoolData);
+        void deleteQueuedMedia([...pendingLogoDeletionIds]);
+      } else {
+        const schoolData: CreateSchoolRequest = {
+          organization: organizations[0].id,
+          name,
+          description,
+          country: normalizedCountry,
+          contact_email: contactEmail,
+          contact_phone: normalizedPhone,
+          website,
+          status: 'ACTIVE',
+        };
+
+        if (uploadedLogoId) {
+          schoolData.logo = uploadedLogoId;
+        }
+
+        await addSchool(schoolData);
+      }
+
+      closeSchoolModal();
       (e.target as HTMLFormElement).reset();
-      setUploadedLogoId(null);
     } catch (err) {
-      console.error('Failed to add school:', err);
+      console.error(`Failed to ${editingSchool ? 'update' : 'add'} school:`, err);
       if (err && typeof err === 'object' && 'normalized' in err) {
         const apiError = err as { normalized: { message: string; fieldErrors?: Array<{ field: string; message: string }> } };
         if (apiError.normalized.fieldErrors && apiError.normalized.fieldErrors.length > 0) {
@@ -128,8 +208,10 @@ export default function SchoolDashboard() {
         } else {
           setError(apiError.normalized.message);
         }
+      } else if (err instanceof Error) {
+        setError(err.message);
       } else {
-        setError('Failed to add school. Please try again.');
+        setError(`Failed to ${editingSchool ? 'update' : 'add'} school. Please try again.`);
       }
     } finally {
       setSubmitting(false);
@@ -145,7 +227,7 @@ export default function SchoolDashboard() {
   return (
     <Layout 
       title="Educational Institution Management" 
-      onAction={() => setIsAddModalOpen(true)}
+      onAction={openAddModal}
       actionLabel="Add New School"
     >
       <div className="p-4 lg:p-8 pb-12">
@@ -173,7 +255,7 @@ export default function SchoolDashboard() {
               Get started by adding your first school to the platform. You can manage multiple schools from this dashboard.
             </p>
             <button 
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={openAddModal}
               className="btn-primary inline-flex items-center gap-2"
             >
               <Plus className="w-5 h-5" />
@@ -192,6 +274,7 @@ export default function SchoolDashboard() {
                 <SchoolCard 
                   school={school} 
                   branchCount={branchCounts[school.id] || 0}
+                  onEdit={openEditModal}
                 />
               </motion.div>
             ))}
@@ -200,15 +283,15 @@ export default function SchoolDashboard() {
       </div>
 
       <Modal 
-        isOpen={isAddModalOpen} 
-        onClose={() => {
-          setIsAddModalOpen(false);
-          setError(null);
-          setUploadedLogoId(null);
-        }} 
-        title="Add New School"
+        isOpen={isSchoolModalOpen}
+        onClose={closeSchoolModal}
+        title={editingSchool ? `Edit ${editingSchool.name}` : 'Add New School'}
       >
-        <form className="space-y-6" onSubmit={handleAddSchool}>
+        <form
+          key={editingSchool?.id ?? 'new-school'}
+          className="space-y-6"
+          onSubmit={handleSchoolSubmit}
+        >
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4">
               <p className="text-sm text-red-800">{error}</p>
@@ -220,8 +303,12 @@ export default function SchoolDashboard() {
               imageOnly={true}
               accept="image/*"
               onUploaded={(mediaId) => setUploadedLogoId(mediaId)}
+              onRemoved={() => setUploadedLogoId(null)}
+              onStateChange={handleLogoStateChange}
+              onBusyChange={setMediaBusy}
+              initialMediaId={editingSchool?.logoMediaId ?? null}
               label="School Logo (Optional)"
-              description="Drop school logo here"
+              description={editingSchool ? 'Replace school logo here' : 'Drop school logo here'}
             />
 
             <div className="space-y-2">
@@ -230,6 +317,7 @@ export default function SchoolDashboard() {
                 name="name"
                 type="text" 
                 required
+                defaultValue={editingSchool?.name ?? ''}
                 placeholder="e.g. St. Andrews Excellence Academy"
                 className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
               />
@@ -239,6 +327,7 @@ export default function SchoolDashboard() {
               <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Description</label>
               <textarea 
                 name="description"
+                defaultValue={editingSchool?.description ?? ''}
                 placeholder="Briefly describe the school's mission and history..."
                 rows={3}
                 className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20 resize-none"
@@ -252,6 +341,7 @@ export default function SchoolDashboard() {
                   name="contact_email"
                   type="email"
                   required
+                  defaultValue={editingSchool?.contactEmail ?? ''}
                   placeholder="admin@school.edu"
                   className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
                 />
@@ -261,6 +351,7 @@ export default function SchoolDashboard() {
                 <input 
                   name="website"
                   type="url" 
+                  defaultValue={editingSchool?.website ?? ''}
                   placeholder="https://www.school.edu"
                   className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
                 />
@@ -270,27 +361,24 @@ export default function SchoolDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Phone Number</label>
-                <input 
+                <PhoneNumberField
                   name="contact_phone"
-                  type="tel" 
+                  value={contactPhone}
+                  onChange={setContactPhone}
                   placeholder="+1 (555) 000-0000"
-                  className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+                  className="w-full rounded-lg border border-outline-variant bg-surface-container px-4 py-3 text-sm focus-within:ring-2 focus-within:ring-primary-navy/20"
                 />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Country *</label>
-                <select 
-                  name="country" 
+                <CountrySearchInput
+                  name="country"
+                  value={country}
+                  onChange={setCountry}
                   required
-                  className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20 appearance-none"
-                >
-                  <option value="">Select a country</option>
-                  <option value="United Kingdom">United Kingdom</option>
-                  <option value="Canada">Canada</option>
-                  <option value="United States">United States</option>
-                  <option value="Australia">Australia</option>
-                  <option value="Ethiopia">Ethiopia</option>
-                </select>
+                  placeholder="Search for a country"
+                  className="w-full rounded-lg border border-outline-variant bg-surface-container px-4 py-3 text-sm focus-within:ring-2 focus-within:ring-primary-navy/20"
+                />
               </div>
             </div>
           </div>
@@ -299,22 +387,22 @@ export default function SchoolDashboard() {
             <div className="flex items-start gap-3 p-4 bg-emerald-50 rounded-lg border border-emerald-100">
               <ShieldCheck className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
               <p className="text-xs text-emerald-800 leading-relaxed">
-                By adding this school, you confirm that all school data is encrypted and compliant with local educational regulations.
+                By {editingSchool ? 'updating' : 'adding'} this school, you confirm that all school data is encrypted and compliant with local educational regulations.
               </p>
             </div>
 
             <button 
               type="submit" 
-              disabled={submitting}
+              disabled={submitting || mediaBusy}
               className="w-full bg-primary-navy text-white py-4 rounded-lg font-bold text-sm uppercase tracking-[0.1em] hover:opacity-90 transition-opacity mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submitting ? (
+              {submitting || mediaBusy ? (
                 <div className="flex items-center justify-center gap-2">
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Adding School...
+                  {mediaBusy ? 'Uploading Logo...' : editingSchool ? 'Saving Changes...' : 'Adding School...'}
                 </div>
               ) : (
-                'Add School'
+                editingSchool ? 'Save Changes' : 'Add School'
               )}
             </button>
           </div>

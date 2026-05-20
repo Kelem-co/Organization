@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail, ArrowRight, Building2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { authApi } from '@/lib/services/authApi';
+import { formatAuthError } from '@/lib/utils/errorMessages';
 
 export default function CheckEmailPage() {
   const router = useRouter();
@@ -31,12 +32,7 @@ export default function CheckEmailPage() {
       await authApi.resendActivation(email);
       setResent(true);
     } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'normalized' in err) {
-        const apiError = err as { normalized: { message: string } };
-        setError(apiError.normalized.message);
-      } else {
-        setError('Failed to resend activation email');
-      }
+      setError(formatAuthError(err));
     } finally {
       setResending(false);
     }
@@ -51,7 +47,7 @@ export default function CheckEmailPage() {
           <div className="inline-block p-5 bg-primary-navy/5 rounded-[--radius-school] mb-6">
             <Building2 className="w-10 h-10 text-primary-navy" />
           </div>
-          <h1 className="text-4xl font-black text-primary-navy mb-3 tracking-tight">
+          <h1 className="text-3xl font-black text-primary-navy mb-3 tracking-tight sm:text-4xl">
             Check Your Email
           </h1>
           <p className="text-xs text-primary-navy/40 font-bold uppercase tracking-[0.3em] mb-4">
@@ -75,7 +71,7 @@ export default function CheckEmailPage() {
             </h2>
 
             <p className="text-text-muted mb-2">
-              We've sent an activation link to:
+              We&apos;ve sent an activation link to:
             </p>
             <p className="text-primary-navy font-semibold mb-6">
               {email}
@@ -129,7 +125,7 @@ export default function CheckEmailPage() {
             </div>
 
             <p className="text-xs text-text-muted mt-6">
-              Didn't receive the email? Check your spam folder or click resend.
+              Didn&apos;t receive the email? Check your spam folder or click resend.
             </p>
           </div>
         </motion.div>

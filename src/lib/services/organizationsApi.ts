@@ -10,14 +10,15 @@ export interface CreateOrganizationRequest {
   business_address: string;
   business_phone_number: string;
   client_phone_number: string;
-  business_license_image?: string; // UUID of uploaded media file
+  business_license_image?: string | null; // UUID of uploaded media file
 }
 
 export const organizationsApi = {
-  async list(): Promise<OrganizationsResponse> {
+  async list(options?: { skipCache?: boolean }): Promise<OrganizationsResponse> {
     const res = await apiRequest<OrganizationsResponse>({
       method: 'GET',
       path: '/api/organizations/',
+      skipCache: options?.skipCache,
     });
     return res.data;
   },

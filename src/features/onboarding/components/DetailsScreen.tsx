@@ -1,12 +1,14 @@
 
 import { useState, type FormEvent, type ChangeEvent } from 'react';
-import { Building2, User, ChevronRight, Briefcase, FileUp } from 'lucide-react';
+import { User, ChevronRight, Briefcase, FileUp } from 'lucide-react';
+import { PhoneNumberField } from '@/components/PhoneNumberField';
 import { OrganizationDetails } from '../types';
 import { organizationsApi } from '@/lib/services/organizationsApi';
 import { MediaUploader } from '@/components/MediaUploader';
+import { normalizeRequiredPhoneNumber } from '@/lib/utils/contactValidation';
 
 interface DetailsScreenProps {
-  onSubmit: (data: OrganizationDetails) => void;
+  onSubmit: (data: OrganizationDetails & { verificationStatus?: string; organizationName?: string }) => void;
 }
 
 export default function DetailsScreen({ onSubmit }: DetailsScreenProps) {
@@ -18,15 +20,24 @@ export default function DetailsScreen({ onSubmit }: DetailsScreenProps) {
     ownerName: '',
     adminEmail: '',
     phoneNumber: '',
+    region: '',
+    city: '',
     address: '',
   });
 
-  const [businessLicenseImageId, setBusinessLicenseImageId] = useState<string | undefined>();
+  const [businessLicenseImageId, setBusinessLicenseImageId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [mediaBusy, setMediaBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    if (mediaBusy) {
+      setError('Please wait for the document upload to finish before submitting.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -39,8 +50,8 @@ export default function DetailsScreen({ onSubmit }: DetailsScreenProps) {
         license_no: formData.licenseNumber,
         client_full_name: formData.ownerName,
         business_address: formData.address,
-        business_phone_number: formData.phoneNumber,
-        client_phone_number: formData.phoneNumber,
+        business_phone_number: normalizeRequiredPhoneNumber(formData.phoneNumber, 'Contact phone number'),
+        client_phone_number: normalizeRequiredPhoneNumber(formData.phoneNumber, 'Contact phone number'),
         business_license_image: businessLicenseImageId,
       };
 
@@ -53,7 +64,7 @@ export default function DetailsScreen({ onSubmit }: DetailsScreenProps) {
         ...formData,
         verificationStatus: createdOrg.verification_status,
         organizationName: createdOrg.name,
-      } as any);
+      });
     } catch (err: unknown) {
       console.error('Failed to create organization:', err);
       if (err && typeof err === 'object' && 'normalized' in err) {
@@ -151,6 +162,10 @@ export default function DetailsScreen({ onSubmit }: DetailsScreenProps) {
               console.log('License uploaded:', mediaId);
               setBusinessLicenseImageId(mediaId);
             }}
+            onRemoved={() => {
+              setBusinessLicenseImageId(null);
+            }}
+            onBusyChange={setMediaBusy}
             label="Business License Document"
             description="Click or drag license photo here (PNG, JPG or PDF)"
           />
@@ -199,17 +214,16 @@ export default function DetailsScreen({ onSubmit }: DetailsScreenProps) {
             </div>
             <div className="space-y-2 md:col-span-2">
               <label className="text-sm font-medium text-text-muted">Contact Phone Number</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted">+251</span>
-                <input 
-                  type="tel"
-                  className="input-field pl-16" 
-                  required 
-                  value={formData.phoneNumber}
-                  onChange={updateField('phoneNumber')}
-                  placeholder="9XXXXXXXX"
-                />
-              </div>
+              <PhoneNumberField
+                name="phoneNumber"
+                value={formData.phoneNumber}
+                onChange={(value) => setFormData((prev) => ({ ...prev, phoneNumber: value }))}
+                required
+                defaultCountry="ET"
+                placeholder="Enter phone number"
+                className="w-full rounded-[var(--radius-school)] border border-gray-100 bg-gray-50/30 px-6 py-4 text-base transition-all focus-within:bg-white focus-within:border-primary-navy focus-within:ring-8 focus-within:ring-primary-navy/[0.03]"
+                inputClassName="text-base text-gray-900 placeholder:text-gray-400"
+              />
             </div>
           </div>
         </div>
@@ -221,11 +235,11 @@ export default function DetailsScreen({ onSubmit }: DetailsScreenProps) {
         )}
 
         <div className="flex justify-end pt-4">
-          <button type="submit" disabled={loading} className="btn-primary px-10">
-            {loading ? (
+          <button type="submit" disabled={loading || mediaBusy} className="btn-primary px-10">
+            {loading || mediaBusy ? (
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Creating organization...
+                {mediaBusy ? 'Uploading document...' : 'Creating organization...'}
               </div>
             ) : (
               <>

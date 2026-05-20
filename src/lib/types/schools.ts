@@ -25,7 +25,9 @@ export interface CreateSchoolRequest {
   status?: 'ACTIVE' | 'INACTIVE';
 }
 
-export interface UpdateSchoolRequest extends Partial<CreateSchoolRequest> {}
+export interface UpdateSchoolRequest extends Omit<Partial<CreateSchoolRequest>, 'logo'> {
+  logo?: string | null;
+}
 
 export interface SchoolsListResponse {
   count: number;

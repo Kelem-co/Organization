@@ -2,11 +2,16 @@ export interface School {
   id: string;
   name: string;
   logo: string;
+  logoMediaId?: string | null;
   location: string;
   studentCount: number;
   staffCount: number;
   description?: string;
   website?: string;
+  organizationId?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  status?: 'ACTIVE' | 'INACTIVE';
 }
 
 export interface Branch {
@@ -15,6 +20,10 @@ export interface Branch {
   name: string;
   address: string;
   city: string;
+  region?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  status?: 'ACTIVE' | 'INACTIVE';
   studentCount: number;
   teacherCount: number;
   capacity: number;
@@ -28,4 +37,5 @@ export interface Admin {
   role: string;
   status: 'active' | 'inactive';
   email: string;
+  lastLogin?: string;
 }

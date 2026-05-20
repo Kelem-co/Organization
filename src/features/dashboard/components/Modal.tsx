@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X } from 'lucide-react';
-import { cn } from '../lib/utils';
 
 interface ModalProps {
   isOpen: boolean;

@@ -13,6 +13,7 @@ import { ApiError, normalizeError } from './errors';
 import { tokenManager } from './tokenManager';
 import { apiLogger } from './logger';
 import { cacheManager, DEFAULT_TTL_MS } from './cache';
+import { refreshAccessToken } from './refreshToken';
 
 export interface RequestConfig {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -94,20 +95,7 @@ async function attemptFetch<T>(
   apiLogger.logResponse(method, url, response.status, data, duration);
 
   if (!response.ok) {
-    // Extract field errors from 422 responses
-    let fieldErrors: { field: string; message: string }[] | undefined;
-    if (response.status === 422 && data && typeof data === 'object') {
-      const errData = data as Record<string, unknown>;
-      if (errData.errors && typeof errData.errors === 'object') {
-        fieldErrors = Object.entries(errData.errors as Record<string, string>).map(
-          ([field, message]) => ({ field, message }),
-        );
-      }
-    }
-
-    const normalized = normalizeError(null, response.status);
-    if (fieldErrors) normalized.fieldErrors = fieldErrors;
-    throw new ApiError(normalized);
+    throw new ApiError(normalizeError(data, response.status));
   }
 
   return { data: data as T, status: response.status };
@@ -169,33 +157,12 @@ export async function apiRequest<T>(config: RequestConfig): Promise<ApiResponse<
     } catch (err) {
       // Handle 401 Unauthorized - try to refresh token
       if (err instanceof ApiError && err.normalized.originalStatus === 401 && !config.skipAuth) {
-        const refreshToken = tokenManager.getRefreshToken();
-        if (refreshToken && attempt === 1) {
-          try {
-            // Try to refresh the token
-            const refreshResponse = await fetch(buildUrl('/auth/jwt/refresh/', {}), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ refresh: refreshToken }),
-            });
-
-            if (refreshResponse.ok) {
-              const data = await refreshResponse.json() as { access: string };
-              tokenManager.setAccessToken(data.access);
-              
-              // Update headers with new token and retry
-              headers['Authorization'] = `Bearer ${data.access}`;
-              fetchOptions.headers = headers;
-              continue; // Retry with new token
-            } else {
-              // Refresh failed, clear tokens
-              tokenManager.clearTokens();
-              throw err;
-            }
-          } catch {
-            // Refresh failed, clear tokens
-            tokenManager.clearTokens();
-            throw err;
+        if (attempt === 1) {
+          const nextAccessToken = await refreshAccessToken();
+          if (nextAccessToken) {
+            headers['Authorization'] = `Bearer ${nextAccessToken}`;
+            fetchOptions.headers = headers;
+            continue;
           }
         }
       }

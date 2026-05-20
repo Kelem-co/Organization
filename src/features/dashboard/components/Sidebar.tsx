@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useOrganizationContext } from '@/context/OrganizationContext';
-import { organizationsApi } from '@/lib/services/organizationsApi';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutGrid, 
@@ -21,73 +21,22 @@ import {
   Plus
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { schoolsApi } from '@/lib/services/schoolsApi';
-import { featureFlags } from '@/config/featureFlags';
-import type { ApiSchool } from '@/lib/types/schools';
+import type { Organization } from '@/lib/types/organizations';
 
 export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => void; isMobile?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const { logout } = useAuth();
-  const { organization } = useOrganizationContext();
+  const { organizations, organization, setOrganization, loading } = useOrganizationContext();
   const [isOpen, setIsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [schools, setSchools] = useState<ApiSchool[]>([]);
-  const [activeSchool, setActiveSchool] = useState<ApiSchool | null>(null);
-  const [loadingSchools, setLoadingSchools] = useState(true);
-  const fetchedSchoolsRef = useRef(false); // Prevent double-fetch
   
   // Get owner name from organization context
   const ownerName = organization?.client_full_name || organization?.name || 'Admin User';
-
-  useEffect(() => {
-    // Prevent double-fetch in React Strict Mode
-    if (fetchedSchoolsRef.current) return;
-    fetchedSchoolsRef.current = true;
-    
-    const fetchSchools = async () => {
-      if (!featureFlags.useRealSchools) {
-        setLoadingSchools(false);
-        return;
-      }
-
-      try {
-        const response = await schoolsApi.list();
-        setSchools(response.results);
-        if (response.results.length > 0) {
-          setActiveSchool(response.results[0]);
-        }
-      } catch (err) {
-        console.error('Failed to fetch schools:', err);
-        
-        // Check if it's a 404 error (no schools exist yet)
-        if (err && typeof err === 'object' && 'normalized' in err) {
-          const apiError = err as { normalized: { code: string } };
-          if (apiError.normalized.code === 'NOT_FOUND') {
-            // 404 means no schools exist yet, not an error
-            setSchools([]);
-            setActiveSchool(null);
-            setLoadingSchools(false);
-            return;
-          }
-        }
-        
-        // For other errors, still set empty but log the error
-        setSchools([]);
-        setActiveSchool(null);
-      } finally {
-        setLoadingSchools(false);
-      }
-    };
-
-    fetchSchools();
-  }, []); // Empty dependency array - only run once
-
-  const handleSchoolSelect = (school: ApiSchool) => {
-    setActiveSchool(school);
+  const handleOrganizationSelect = (selectedOrganization: Organization) => {
+    setOrganization(selectedOrganization);
     setIsOpen(false);
-    // Navigate to the selected school's detail page
-    router.push(`/school/${school.id}`);
+    router.push('/');
     onNavClick?.();
   };
 
@@ -112,13 +61,13 @@ export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => v
       "w-full bg-[#F8FAFC] flex flex-col h-full overflow-y-auto",
       !isMobile && "border-r border-[#E2E8F0] fixed left-0 top-0 w-64 h-screen"
     )}>
-      {/* School Switcher */}
+      {/* Organization Switcher */}
       <div className="p-4 relative">
-        {loadingSchools ? (
+        {loading ? (
           <div className="w-full flex items-center justify-center p-4">
             <div className="w-6 h-6 border-2 border-primary-navy/20 border-t-primary-navy rounded-full animate-spin" />
           </div>
-        ) : schools.length === 0 ? (
+        ) : organizations.length === 0 ? (
           <button 
             onClick={() => {
               router.push('/');
@@ -130,8 +79,8 @@ export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => v
               <Plus className="w-6 h-6 text-primary-navy" />
             </div>
             <div className="flex-1">
-              <h2 className="font-bold text-primary-navy text-[13px] leading-tight">Add School</h2>
-              <p className="text-[9px] font-bold text-primary-navy/40 uppercase tracking-[0.05em] mt-0.5">No schools yet</p>
+              <h2 className="font-bold text-primary-navy text-[13px] leading-tight">Add Organization</h2>
+              <p className="text-[9px] font-bold text-primary-navy/40 uppercase tracking-[0.05em] mt-0.5">No organizations yet</p>
             </div>
           </button>
         ) : (
@@ -148,10 +97,10 @@ export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => v
               </div>
               <div className="flex-1 overflow-hidden">
                 <h2 className="font-bold text-primary-navy text-[13px] truncate leading-tight uppercase tracking-tight">
-                  {activeSchool?.name || 'Select School'}
+                  {organization?.name || 'Select Organization'}
                 </h2>
                 <p className="text-[9px] font-bold text-primary-navy/40 uppercase tracking-[0.05em] mt-0.5">
-                  {activeSchool?.country || 'No location'}
+                  {organization?.trade_name || organization?.business_address || 'No details'}
                 </p>
               </div>
               <ChevronsUpDown className="w-3 h-3 text-primary-navy/20 shrink-0" />
@@ -161,27 +110,29 @@ export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => v
             {isOpen && (
               <div className="absolute top-full left-4 right-4 mt-1 bg-white border border-outline-variant rounded-lg shadow-xl z-50 py-2 animate-in fade-in slide-in-from-top-1 duration-200">
                 <div className="px-4 pb-2 border-b border-outline-variant/30 mb-1">
-                  <span className="text-[9px] font-bold text-primary-navy/40 uppercase tracking-[0.1em]">Switch School</span>
+                  <span className="text-[9px] font-bold text-primary-navy/40 uppercase tracking-[0.1em]">Switch Organization</span>
                 </div>
                 
                 <div className="space-y-0.5 max-h-64 overflow-y-auto">
-                  {schools.map((school) => (
+                  {organizations.map((organizationItem) => (
                     <button
-                      key={school.id}
-                      onClick={() => handleSchoolSelect(school)}
+                      key={organizationItem.id}
+                      onClick={() => handleOrganizationSelect(organizationItem)}
                       className={cn(
                         "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors",
-                        activeSchool?.id === school.id ? "bg-surface-container" : "hover:bg-surface"
+                        organization?.id === organizationItem.id ? "bg-surface-container" : "hover:bg-surface"
                       )}
                     >
                       <div className="w-8 h-8 rounded-sm flex items-center justify-center shrink-0 bg-primary-navy">
                         <School className="w-5 h-5 text-white" />
                       </div>
                       <div className="flex-1 overflow-hidden">
-                        <h3 className="font-bold text-primary-navy text-[12px] truncate">{school.name}</h3>
-                        <p className="text-[9px] font-bold text-primary-navy/40 uppercase tracking-tighter">{school.country}</p>
+                        <h3 className="font-bold text-primary-navy text-[12px] truncate">{organizationItem.name}</h3>
+                        <p className="text-[9px] font-bold text-primary-navy/40 uppercase tracking-tighter">
+                          {organizationItem.trade_name || organizationItem.business_address || 'No details'}
+                        </p>
                       </div>
-                      {activeSchool?.id === school.id && (
+                      {organization?.id === organizationItem.id && (
                         <Check className="w-3 h-3 text-primary-navy shrink-0" />
                       )}
                     </button>
@@ -198,7 +149,7 @@ export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => v
                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-primary-navy hover:bg-surface transition-colors"
                   >
                     <Plus className="w-4 h-4" />
-                    Add New School
+                    Add New Organization
                   </button>
                 </div>
               </div>
@@ -262,11 +213,13 @@ export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => v
                 <div className="p-4 border-b border-outline-variant/30 bg-surface">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-sm ring-1 ring-outline-variant/50">
-                      <img 
-                        src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&q=80" 
-                        alt="Admin Profile" 
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover"
+                      <Image
+                        src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&q=80"
+                        alt="Admin Profile"
+                        width={48}
+                        height={48}
+                        sizes="48px"
+                        className="h-full w-full object-cover"
                       />
                     </div>
                     <div className="flex flex-col min-w-0">
@@ -321,11 +274,13 @@ export default function Sidebar({ onNavClick, isMobile }: { onNavClick?: () => v
           )}
         >
           <div className="w-10 h-10 rounded-full overflow-hidden border border-outline-variant shadow-sm shrink-0 group-hover:scale-105 transition-transform">
-            <img 
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&q=80" 
-              alt="Org Owner" 
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-cover"
+            <Image
+              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&q=80"
+              alt="Org Owner"
+              width={40}
+              height={40}
+              sizes="40px"
+              className="h-full w-full object-cover"
             />
           </div>
           {!isMobile && (

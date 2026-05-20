@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
             <div className="inline-block p-5 bg-primary-navy/5 rounded-[--radius-school] mb-6">
               <Building2 className="w-10 h-10 text-primary-navy" />
             </div>
-            <h1 className="text-4xl font-black text-primary-navy mb-3 tracking-tight">
+            <h1 className="text-3xl font-black text-primary-navy mb-3 tracking-tight sm:text-4xl">
               Check Your Email
             </h1>
             <p className="text-xs text-primary-navy/40 font-bold uppercase tracking-[0.3em] mb-4">
@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
               </h2>
 
               <p className="text-text-muted mb-2">
-                We've sent a password reset link to:
+                We&apos;ve sent a password reset link to:
               </p>
               <p className="text-primary-navy font-semibold mb-6">
                 {email}
@@ -92,7 +92,7 @@ export default function ForgotPasswordPage() {
               </button>
 
               <p className="text-xs text-text-muted mt-6">
-                Didn't receive the email? Check your spam folder.
+                Didn&apos;t receive the email? Check your spam folder.
               </p>
             </div>
           </motion.div>
@@ -108,14 +108,14 @@ export default function ForgotPasswordPage() {
           <div className="inline-block p-5 bg-primary-navy/5 rounded-[--radius-school] mb-6">
             <Building2 className="w-10 h-10 text-primary-navy" />
           </div>
-          <h1 className="text-4xl font-black text-primary-navy mb-3 tracking-tight">
+          <h1 className="text-3xl font-black text-primary-navy mb-3 tracking-tight sm:text-4xl">
             Forgot Password?
           </h1>
           <p className="text-xs text-primary-navy/40 font-bold uppercase tracking-[0.3em] mb-4">
             Institutional Portal
           </p>
-          <p className="text-text-muted text-lg">
-            Enter your email and we'll send you a reset link.
+          <p className="text-base text-text-muted sm:text-lg">
+            Enter your email and we&apos;ll send you a reset link.
           </p>
         </div>
 

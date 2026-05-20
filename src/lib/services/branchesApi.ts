@@ -1,4 +1,5 @@
 import { apiRequest } from '../api/client';
+import type { InviteBranchAdminRequest, BranchAdmin } from '../types/branchAdmins';
 import type { ApiBranch, CreateBranchRequest, UpdateBranchRequest, BranchesListResponse } from '../types/branches';
 
 export const branchesApi = {
@@ -50,17 +51,21 @@ export const branchesApi = {
     return response.results.filter(branch => branch.school === schoolId);
   },
 
-  async listAdmins(branchId: string): Promise<any[]> {
+  async listAdmins(_branchId: string): Promise<BranchAdmin[]> {
     // Mock implementation - will be replaced with real API
+    void _branchId;
     return [];
   },
 
-  async createAdmin(data: any): Promise<any> {
+  async createAdmin(_data: InviteBranchAdminRequest): Promise<{ message: string }> {
     // Mock implementation - will be replaced with real API
-    return {};
+    void _data;
+    return { message: 'Not implemented' };
   },
 
-  async deleteAdmin(branchId: string, adminId: string): Promise<void> {
+  async deleteAdmin(_branchId: string, _adminId: string): Promise<void> {
     // Mock implementation - will be replaced with real API
+    void _branchId;
+    void _adminId;
   },
 };

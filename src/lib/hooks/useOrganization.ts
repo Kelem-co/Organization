@@ -3,7 +3,7 @@ import { organizationsApi } from '@/lib/services/organizationsApi';
 import type { Organization, UpdateOrganizationRequest } from '@/lib/types/organizations';
 
 export function useOrganization() {
-  const { organization, loading, error, refetch } = useOrganizationContext();
+  const { organization, loading, error, refetch, setOrganization } = useOrganizationContext();
 
   const updateOrganization = async (data: UpdateOrganizationRequest): Promise<Organization> => {
     if (!organization) {
@@ -11,7 +11,9 @@ export function useOrganization() {
     }
 
     const updated = await organizationsApi.update(organization.id, data);
-    // Refetch to update the shared context
+    // Update shared state immediately so media and other fields refresh without
+    // waiting on a follow-up list request.
+    setOrganization(updated);
     await refetch();
     return updated;
   };

@@ -1,22 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { createMediaClient, MediaCompleteResponse } from "@/lib/media/mediaClient";
-import { tokenManager } from "@/lib/api/tokenManager";
-import { appConfig } from "@/lib/api/config";
+import { MediaCompleteResponse } from "@/lib/media/mediaClient";
+import { createBrowserMediaClient } from "@/lib/media/browserMediaClient";
 
 export function useMediaUpload() {
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const mediaClient = createMediaClient({
-    baseUrl: appConfig.apiBaseUrl,
-    getAuthHeaders: () => {
-      const token = tokenManager.getAccessToken();
-      return token ? { Authorization: `Bearer ${token}` } : {};
-    },
-  });
+  const mediaClient = createBrowserMediaClient();
 
   async function upload(file: File): Promise<MediaCompleteResponse> {
     setUploading(true);
@@ -38,9 +32,26 @@ export function useMediaUpload() {
     }
   }
 
+  async function remove(mediaId: string): Promise<void> {
+    setRemoving(true);
+    setError(null);
+
+    try {
+      await mediaClient.deleteMedia(mediaId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to remove media";
+      setError(message);
+      throw err;
+    } finally {
+      setRemoving(false);
+    }
+  }
+
   return {
     upload,
+    remove,
     uploading,
+    removing,
     progress,
     error,
   };

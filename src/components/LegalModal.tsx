@@ -158,7 +158,7 @@ export function TermsOfService() {
       <section>
         <h3 className="text-lg font-semibold text-slate-900 mb-3">7. Payment and Billing</h3>
         <p>
-          If you subscribe to a paid plan, you agree to pay all fees associated with your subscription. Fees are billed in advance on a recurring basis. We reserve the right to change our pricing with 30 days' notice.
+          If you subscribe to a paid plan, you agree to pay all fees associated with your subscription. Fees are billed in advance on a recurring basis. We reserve the right to change our pricing with 30 days&rsquo; notice.
         </p>
       </section>
 
@@ -228,7 +228,7 @@ export function PrivacyPolicy() {
         <h4 className="font-semibold text-slate-800 mt-4 mb-2">Personal Information</h4>
         <p>When you create an account, we collect:</p>
         <ul className="list-disc pl-6 mt-2 space-y-1">
-          <li>Name (including father's name and grandfather's name)</li>
+          <li>Name (including father&rsquo;s name and grandfather&rsquo;s name)</li>
           <li>Email address</li>
           <li>Phone number (optional)</li>
           <li>Physical address (optional)</li>
@@ -304,7 +304,7 @@ export function PrivacyPolicy() {
         <ul className="list-disc pl-6 mt-2 space-y-1">
           <li><strong>FERPA:</strong> Family Educational Rights and Privacy Act (US)</li>
           <li><strong>GDPR:</strong> General Data Protection Regulation (EU)</li>
-          <li><strong>COPPA:</strong> Children's Online Privacy Protection Act</li>
+          <li><strong>COPPA:</strong> Children&rsquo;s Online Privacy Protection Act</li>
           <li>Other applicable local and international data protection laws</li>
         </ul>
       </section>
@@ -354,7 +354,7 @@ export function PrivacyPolicy() {
       </section>
 
       <section>
-        <h3 className="text-lg font-semibold text-slate-900 mb-3">10. Children's Privacy</h3>
+        <h3 className="text-lg font-semibold text-slate-900 mb-3">10. Children&rsquo;s Privacy</h3>
         <p>
           While our platform is used by educational institutions that serve minors, we do not knowingly collect personal information directly from children under 13 without parental consent. Schools and parents are responsible for managing student data in compliance with applicable laws.
         </p>
@@ -363,7 +363,7 @@ export function PrivacyPolicy() {
       <section>
         <h3 className="text-lg font-semibold text-slate-900 mb-3">11. Changes to This Policy</h3>
         <p>
-          We may update this Privacy Policy from time to time. We will notify you of any material changes by posting the new policy on this page and updating the "Last Updated" date. We encourage you to review this policy periodically.
+          We may update this Privacy Policy from time to time. We will notify you of any material changes by posting the new policy on this page and updating the &quot;Last Updated&quot; date. We encourage you to review this policy periodically.
         </p>
       </section>
 
@@ -383,7 +383,7 @@ export function PrivacyPolicy() {
       <section className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h4 className="font-semibold text-blue-900 mb-2">Your Privacy Matters</h4>
         <p className="text-blue-800 text-sm">
-          We are committed to protecting your privacy and maintaining the security of your data. If you have any concerns or questions about how we handle your information, please don't hesitate to reach out to our team.
+          We are committed to protecting your privacy and maintaining the security of your data. If you have any concerns or questions about how we handle your information, please don&rsquo;t hesitate to reach out to our team.
         </p>
       </section>
     </div>

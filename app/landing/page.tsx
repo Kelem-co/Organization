@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -50,7 +51,7 @@ export default function LandingPage() {
               <div className="w-10 h-10 bg-primary-navy rounded-xl flex items-center justify-center">
                 <GraduationCap className="w-6 h-6 text-white" />
               </div>
-              <span className="text-2xl font-black text-primary-navy">Kelem.co</span>
+              <span className="text-xl font-black text-primary-navy">Kelem.co</span>
             </div>
 
             {/* Desktop Menu */}
@@ -123,18 +124,18 @@ export default function LandingPage() {
                 <Zap className="w-4 h-4" />
                 Trusted by 500+ Schools Worldwide
               </div>
-              <h1 className="text-5xl md:text-6xl font-black text-primary-navy mb-6 leading-tight">
+              <h1 className="text-4xl md:text-5xl font-black text-primary-navy mb-6 leading-tight">
                 Bridge the Gap Between
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-primary-navy">
                   {' '}Schools & Parents
                 </span>
               </h1>
-              <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+              <p className="text-lg text-gray-600 mb-8 leading-relaxed md:text-xl">
                 Kelem.co is the all-in-one parent-school engagement platform that transforms communication,
                 streamlines operations, and builds stronger educational communities.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/onboarding" className="btn-primary text-lg px-8 py-4 group">
+                <Link href="/onboarding" className="btn-primary group text-base md:text-lg">
                   Start Free 30-Day Trial
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
                 </Link>
@@ -164,10 +165,14 @@ export default function LandingPage() {
               className="relative"
             >
               <div className="relative rounded-3xl overflow-hidden shadow-2xl">
-                <img
+                <Image
                   src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=800&h=600&fit=crop"
                   alt="Parents and teachers collaborating"
-                  className="w-full h-auto"
+                  width={800}
+                  height={600}
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="h-auto w-full"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-primary-navy/20 to-transparent" />
               </div>
@@ -211,7 +216,7 @@ export default function LandingPage() {
                 viewport={{ once: true }}
                 className="text-center"
               >
-                <div className="text-4xl md:text-5xl font-black text-white mb-2">{stat.number}</div>
+                <div className="text-3xl md:text-4xl font-black text-white mb-2">{stat.number}</div>
                 <div className="text-blue-200 font-medium">{stat.label}</div>
               </motion.div>
             ))}
@@ -228,10 +233,10 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <h2 className="text-4xl md:text-5xl font-black text-primary-navy mb-4">
+              <h2 className="text-3xl md:text-4xl font-black text-primary-navy mb-4">
                 Everything You Need to Engage Parents
               </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              <p className="text-lg text-gray-600 max-w-3xl mx-auto md:text-xl">
                 Powerful features designed to strengthen the connection between schools and families
               </p>
             </motion.div>
@@ -287,7 +292,7 @@ export default function LandingPage() {
                 <div className={`w-14 h-14 ${feature.color} rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition`}>
                   <feature.icon className="w-7 h-7" />
                 </div>
-                <h3 className="text-xl font-bold text-primary-navy mb-3">{feature.title}</h3>
+                <h3 className="text-lg font-bold text-primary-navy mb-3 md:text-xl">{feature.title}</h3>
                 <p className="text-gray-600 leading-relaxed">{feature.description}</p>
               </motion.div>
             ))}
@@ -299,10 +304,10 @@ export default function LandingPage() {
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 to-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black text-primary-navy mb-4">
+            <h2 className="text-3xl md:text-4xl font-black text-primary-navy mb-4">
               Get Started in 3 Simple Steps
             </h2>
-            <p className="text-xl text-gray-600">From signup to full engagement in minutes</p>
+            <p className="text-lg text-gray-600 md:text-xl">From signup to full engagement in minutes</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -341,7 +346,7 @@ export default function LandingPage() {
                   <div className="w-16 h-16 bg-primary-navy rounded-2xl flex items-center justify-center mb-6">
                     <step.icon className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="text-2xl font-bold text-primary-navy mb-3">{step.title}</h3>
+                  <h3 className="text-xl font-bold text-primary-navy mb-3 md:text-2xl">{step.title}</h3>
                   <p className="text-gray-600 leading-relaxed">{step.description}</p>
                 </div>
               </motion.div>
@@ -354,10 +359,10 @@ export default function LandingPage() {
       <section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black text-primary-navy mb-4">
+            <h2 className="text-3xl md:text-4xl font-black text-primary-navy mb-4">
               Simple, Transparent Pricing
             </h2>
-            <p className="text-xl text-gray-600">Choose the plan that fits your school's needs</p>
+            <p className="text-lg text-gray-600 md:text-xl">Choose the plan that fits your school&apos;s needs</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
@@ -425,17 +430,17 @@ export default function LandingPage() {
                   </div>
                 )}
                 <div className="text-center mb-8">
-                  <h3 className={`text-2xl font-bold mb-2 ${plan.popular ? 'text-white' : 'text-primary-navy'}`}>
+                  <h3 className={`text-xl font-bold mb-2 md:text-2xl ${plan.popular ? 'text-white' : 'text-primary-navy'}`}>
                     {plan.name}
                   </h3>
                   <p className={`text-sm mb-4 ${plan.popular ? 'text-blue-200' : 'text-gray-600'}`}>
                     {plan.description}
                   </p>
                   <div className="flex items-end justify-center gap-1">
-                    <span className={`text-5xl font-black ${plan.popular ? 'text-white' : 'text-primary-navy'}`}>
+                    <span className={`text-4xl font-black md:text-5xl ${plan.popular ? 'text-white' : 'text-primary-navy'}`}>
                       {plan.price}
                     </span>
-                    <span className={`text-lg mb-2 ${plan.popular ? 'text-blue-200' : 'text-gray-600'}`}>
+                    <span className={`mb-2 text-base md:text-lg ${plan.popular ? 'text-blue-200' : 'text-gray-600'}`}>
                       {plan.period}
                     </span>
                   </div>
@@ -472,8 +477,8 @@ export default function LandingPage() {
       <section id="testimonials" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-primary-navy to-blue-900 text-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black mb-4">Loved by Schools Worldwide</h2>
-            <p className="text-xl text-blue-200">See what educators and parents are saying</p>
+            <h2 className="text-3xl font-black mb-4 md:text-4xl">Loved by Schools Worldwide</h2>
+            <p className="text-lg text-blue-200 md:text-xl">See what educators and parents are saying</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -515,10 +520,13 @@ export default function LandingPage() {
                 </div>
                 <p className="text-blue-100 mb-6 leading-relaxed">{testimonial.content}</p>
                 <div className="flex items-center gap-4">
-                  <img
+                  <Image
                     src={testimonial.avatar}
                     alt={testimonial.name}
-                    className="w-12 h-12 rounded-full object-cover"
+                    width={48}
+                    height={48}
+                    sizes="48px"
+                    className="h-12 w-12 rounded-full object-cover"
                   />
                   <div>
                     <div className="font-bold">{testimonial.name}</div>
@@ -539,14 +547,14 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-4xl md:text-5xl font-black text-primary-navy mb-6">
+            <h2 className="text-3xl md:text-4xl font-black text-primary-navy mb-6">
               Ready to Transform Your School Communication?
             </h2>
-            <p className="text-xl text-gray-600 mb-8">
+            <p className="text-lg text-gray-600 mb-8 md:text-xl">
               Join hundreds of schools already using Kelem.co to build stronger parent-school relationships
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/onboarding" className="btn-primary text-lg px-10 py-5 group">
+              <Link href="/onboarding" className="btn-primary group text-base md:text-lg">
                 Start Your Free Trial
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
               </Link>
@@ -571,7 +579,7 @@ export default function LandingPage() {
                 <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
                   <GraduationCap className="w-6 h-6 text-primary-navy" />
                 </div>
-                <span className="text-2xl font-black">Kelem.co</span>
+                <span className="text-xl font-black">Kelem.co</span>
               </div>
               <p className="text-blue-200 text-sm">
                 Empowering schools and parents to build stronger educational communities together.

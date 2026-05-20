@@ -3,18 +3,16 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { PhoneNumberField } from '@/components/PhoneNumberField';
 import StatCard from '../components/StatCard';
 import PerformanceChart from '../components/PerformanceChart';
 import Modal from '../components/Modal';
 import Layout from '../components/Layout';
-import { 
-  MOCK_SCHOOLS, 
-  MOCK_BRANCHES, 
-  MOCK_ADMINS 
-} from '../constants';
 import { useBranchDetail } from '@/lib/hooks/useBranchDetail';
 import { branchAdminsApi } from '@/lib/services/branchAdminsApi';
+import type { UpdateBranchRequest } from '@/lib/types/branches';
 import { featureFlags } from '@/config/featureFlags';
+import { normalizeOptionalPhoneNumber } from '@/lib/utils/contactValidation';
 import { 
   Users, 
   GraduationCap, 
@@ -38,8 +36,11 @@ export default function BranchDetail() {
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [isAddBranchOpen, setIsAddBranchOpen] = useState(false);
   const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
+  const [isEditBranchOpen, setIsEditBranchOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [branchContactPhone, setBranchContactPhone] = useState('');
+  const [editBranchContactPhone, setEditBranchContactPhone] = useState('');
 
   const {
     school,
@@ -49,26 +50,26 @@ export default function BranchDetail() {
     setAdmins,
     loading,
     addBranch,
+    updateBranch,
     refreshBranchAdmins,
   } = useBranchDetail(schoolId ?? '');
 
-  React.useEffect(() => {
-    if (branches.length > 0 && !selectedBranchId) {
-      setSelectedBranchId(branches[0].id);
-    }
-  }, [branches, selectedBranchId]);
+  const activeBranchId =
+    selectedBranchId && branches.some((branch) => branch.id === selectedBranchId)
+      ? selectedBranchId
+      : branches[0]?.id ?? null;
 
   const selectedBranch = useMemo(() => 
-    branches.find(b => b.id === selectedBranchId), 
-    [branches, selectedBranchId]
+    branches.find(b => b.id === activeBranchId), 
+    [activeBranchId, branches]
   );
 
   const branchAdmins = useMemo(() => {
-    if (!selectedBranchId) return [];
+    if (!activeBranchId) return [];
     
     // Use real branch admins when using real branches
-    if (featureFlags.useRealBranches && branchAdminsMap[selectedBranchId]) {
-      const adminsData = branchAdminsMap[selectedBranchId];
+    if (featureFlags.useRealBranches && branchAdminsMap[activeBranchId]) {
+      const adminsData = branchAdminsMap[activeBranchId];
       
       // Ensure it's an array before mapping
       if (!Array.isArray(adminsData)) {
@@ -89,11 +90,28 @@ export default function BranchDetail() {
     }
     
     // Fallback to mock admins
-    return admins.filter(a => a.branchId === selectedBranchId);
-  }, [selectedBranchId, admins, branchAdminsMap]);
+    return admins.filter(a => a.branchId === activeBranchId);
+  }, [activeBranchId, admins, branchAdminsMap]);
 
   const handleRemoveAdmin = (adminId: string) => {
     setAdmins(prev => prev.filter(a => a.id !== adminId));
+  };
+
+  const closeEditBranchModal = () => {
+    setIsEditBranchOpen(false);
+    setError(null);
+    setEditBranchContactPhone('');
+  };
+
+  const openEditBranchModal = () => {
+    if (!selectedBranch) {
+      setError('No branch selected');
+      return;
+    }
+
+    setError(null);
+    setEditBranchContactPhone(selectedBranch.contactPhone ?? '');
+    setIsEditBranchOpen(true);
   };
 
   const handleAddBranch = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -103,26 +121,28 @@ export default function BranchDetail() {
       setError('School information not available');
       return;
     }
-
-    const formData = new FormData(e.currentTarget);
-    
     try {
       setSubmitting(true);
       setError(null);
+
+      const formData = new FormData(e.currentTarget);
       
       const branchData = {
         name: formData.get('name') as string,
         address: formData.get('address') as string,
         city: formData.get('city') as string,
         region: formData.get('region') as string || '',
-        contact_phone: formData.get('contact_phone') as string || '',
+        contact_phone: normalizeOptionalPhoneNumber(
+          String(formData.get('contact_phone') ?? ''),
+          'Branch contact phone'
+        ),
         contact_email: formData.get('contact_email') as string || '',
       };
       
       await addBranch(branchData);
       setIsAddBranchOpen(false);
-      // Reset form
       (e.target as HTMLFormElement).reset();
+      setBranchContactPhone('');
     } catch (err) {
       console.error('Failed to create branch:', err);
       if (err && typeof err === 'object' && 'normalized' in err) {
@@ -132,6 +152,8 @@ export default function BranchDetail() {
         } else {
           setError(apiError.normalized.message);
         }
+      } else if (err instanceof Error) {
+        setError(err.message);
       } else {
         setError('Failed to create branch. Please try again.');
       }
@@ -143,7 +165,7 @@ export default function BranchDetail() {
   const handleAddAdmin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    if (!selectedBranchId) {
+    if (!activeBranchId) {
       setError('No branch selected');
       return;
     }
@@ -161,7 +183,7 @@ export default function BranchDetail() {
         father_name: formData.get('father_name') as string,
         grandfather_name: formData.get('grandfather_name') as string,
         role_title: formData.get('role_title') as string,
-        branch: selectedBranchId,
+        branch: activeBranchId,
       });
       
       setIsAddAdminOpen(false);
@@ -169,7 +191,7 @@ export default function BranchDetail() {
       
       // Refresh the branch admins list
       if (featureFlags.useRealBranches) {
-        await refreshBranchAdmins(selectedBranchId);
+        await refreshBranchAdmins(activeBranchId);
       }
       
       // Show success message
@@ -185,6 +207,52 @@ export default function BranchDetail() {
         }
       } else {
         setError('Failed to send invitation. Please try again.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEditBranch = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!selectedBranch) {
+      setError('No branch selected');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setError(null);
+
+      const formData = new FormData(e.currentTarget);
+      const branchData: UpdateBranchRequest = {
+        name: String(formData.get('name') ?? ''),
+        address: String(formData.get('address') ?? ''),
+        city: String(formData.get('city') ?? ''),
+        region: String(formData.get('region') ?? ''),
+        contact_phone: normalizeOptionalPhoneNumber(
+          String(formData.get('contact_phone') ?? ''),
+          'Branch contact phone'
+        ),
+        contact_email: String(formData.get('contact_email') ?? ''),
+      };
+
+      await updateBranch(selectedBranch.id, branchData);
+      closeEditBranchModal();
+    } catch (err) {
+      console.error('Failed to update branch:', err);
+      if (err && typeof err === 'object' && 'normalized' in err) {
+        const apiError = err as { normalized: { message: string; fieldErrors?: Array<{ field: string; message: string }> } };
+        if (apiError.normalized.fieldErrors && apiError.normalized.fieldErrors.length > 0) {
+          setError(apiError.normalized.fieldErrors.map(e => `${e.field}: ${e.message}`).join(', '));
+        } else {
+          setError(apiError.normalized.message);
+        }
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Failed to update branch. Please try again.');
       }
     } finally {
       setSubmitting(false);
@@ -210,7 +278,7 @@ export default function BranchDetail() {
           </div>
           <h2 className="text-2xl font-bold text-primary-navy mb-3">School Not Found</h2>
           <p className="text-gray-600 mb-6 max-w-md">
-            The school you're looking for doesn't exist or you don't have access to it.
+            The school you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.
           </p>
           <Link href="/" className="btn-primary">
             Back to Dashboard
@@ -263,20 +331,20 @@ export default function BranchDetail() {
                   onClick={() => setSelectedBranchId(branch.id)}
                   className={cn(
                     "relative px-4 py-2 rounded-lg text-xs font-bold transition-all shrink-0 border",
-                    selectedBranchId === branch.id 
+                    activeBranchId === branch.id 
                       ? "bg-primary-navy text-white border-primary-navy shadow-md" 
                       : "bg-white text-primary-navy/60 border-outline-variant hover:border-primary-navy/30 hover:text-primary-navy hover:bg-surface"
                   )}
                 >
                   <div className="flex items-center gap-2">
                     <span>{branch.name}</span>
-                    {selectedBranchId === branch.id && (
+                    {activeBranchId === branch.id && (
                       <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                     )}
                   </div>
                   <span className={cn(
                     "text-[9px] font-medium",
-                    selectedBranchId === branch.id ? "text-white/70" : "text-primary-navy/40"
+                    activeBranchId === branch.id ? "text-white/70" : "text-primary-navy/40"
                   )}>
                     {branch.city}
                   </span>
@@ -423,7 +491,10 @@ export default function BranchDetail() {
                         <button className="w-full bg-white/10 hover:bg-white/20 transition-colors py-3.5 px-4 rounded-lg text-sm font-bold flex items-center justify-center gap-3 active:scale-95">
                           Manage Staff Access
                         </button>
-                        <button className="w-full bg-white text-primary-navy py-3.5 px-4 rounded-lg text-sm font-bold flex items-center justify-center gap-3 shadow-lg active:scale-95">
+                        <button
+                          onClick={openEditBranchModal}
+                          className="w-full bg-white text-primary-navy py-3.5 px-4 rounded-lg text-sm font-bold flex items-center justify-center gap-3 shadow-lg active:scale-95"
+                        >
                           Branch Settings
                         </button>
                       </div>
@@ -479,6 +550,7 @@ export default function BranchDetail() {
         onClose={() => {
           setIsAddBranchOpen(false);
           setError(null);
+          setBranchContactPhone('');
         }} 
         title="Add Campus Branch"
       >
@@ -536,11 +608,12 @@ export default function BranchDetail() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Contact Phone</label>
-              <input 
+              <PhoneNumberField
                 name="contact_phone"
-                type="tel"
+                value={branchContactPhone}
+                onChange={setBranchContactPhone}
                 placeholder="+251911234567"
-                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+                className="w-full rounded-lg border border-outline-variant bg-surface-container px-4 py-3 text-sm focus-within:ring-2 focus-within:ring-primary-navy/20"
               />
             </div>
             <div className="space-y-2">
@@ -661,6 +734,110 @@ export default function BranchDetail() {
               </div>
             ) : (
               'Send Invitation'
+            )}
+          </button>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={isEditBranchOpen}
+        onClose={closeEditBranchModal}
+        title={selectedBranch ? `Edit ${selectedBranch.name}` : 'Edit Branch'}
+      >
+        <form
+          key={selectedBranch?.id ?? 'edit-branch'}
+          className="space-y-6"
+          onSubmit={handleEditBranch}
+        >
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Branch Name *</label>
+            <input
+              name="name"
+              type="text"
+              required
+              defaultValue={selectedBranch?.name ?? ''}
+              placeholder="e.g. South Campus"
+              className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Physical Address *</label>
+            <input
+              name="address"
+              type="text"
+              required
+              defaultValue={selectedBranch?.address ?? ''}
+              placeholder="Street address"
+              className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">City *</label>
+              <input
+                name="city"
+                type="text"
+                required
+                defaultValue={selectedBranch?.city ?? ''}
+                placeholder="e.g. Addis Ababa"
+                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Region</label>
+              <input
+                name="region"
+                type="text"
+                defaultValue={selectedBranch?.region ?? ''}
+                placeholder="e.g. Addis Ababa"
+                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Contact Phone</label>
+              <PhoneNumberField
+                name="contact_phone"
+                value={editBranchContactPhone}
+                onChange={setEditBranchContactPhone}
+                placeholder="+251911234567"
+                className="w-full rounded-lg border border-outline-variant bg-surface-container px-4 py-3 text-sm focus-within:ring-2 focus-within:ring-primary-navy/20"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Contact Email</label>
+              <input
+                name="contact_email"
+                type="email"
+                defaultValue={selectedBranch?.contactEmail ?? ''}
+                placeholder="branch@school.edu"
+                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full bg-primary-navy text-white py-4 rounded-lg font-bold text-sm uppercase tracking-[0.1em] hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Saving Changes...
+              </div>
+            ) : (
+              'Save Changes'
             )}
           </button>
         </form>

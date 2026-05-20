@@ -25,45 +25,34 @@ export function formatAuthError(error: unknown): string {
       }).join('. ');
     }
 
-    // Handle specific error codes
     switch (code) {
       case 'UNAUTHORIZED':
         return 'Invalid email or password. Please check your credentials and try again.';
-      
       case 'FORBIDDEN':
         return 'Access denied. Your account may not have the necessary permissions.';
-      
       case 'NOT_FOUND':
         return 'Account not found. Please check your email or create a new account.';
-      
       case 'VALIDATION_ERROR':
         return message || 'Please check your input and try again.';
-      
       case 'NETWORK_ERROR':
         return 'Unable to connect to the server. Please check your internet connection.';
-      
       case 'TIMEOUT':
         return 'Request timed out. Please try again.';
-      
       case 'SERVER_ERROR':
         return 'Server error. Please try again later.';
-      
       default:
-        // For 400 errors, show the message as-is (usually validation errors)
         if (originalStatus === 400) {
           return message || 'Invalid request. Please check your input.';
         }
-        
-        // For 401 errors
+
         if (originalStatus === 401) {
           return 'Invalid email or password. Please try again.';
         }
-        
-        // For 409 errors (conflict, usually duplicate email)
+
         if (originalStatus === 409) {
           return 'An account with this email already exists. Please login instead.';
         }
-        
+
         return message || 'An error occurred. Please try again.';
     }
   }

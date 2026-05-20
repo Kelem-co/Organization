@@ -29,7 +29,7 @@ export const branchAdminsApi = {
     // Remove trailing slash to fix "method not allowed" error
     const res = await apiRequest<{ message: string }>({
       method: 'POST',
-      path: '/api/branch-admins/invite',
+      path: '/api/branch-admins/invite/',
       body: data,
     });
     return res.data;

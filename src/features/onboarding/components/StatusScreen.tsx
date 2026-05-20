@@ -1,4 +1,4 @@
-import { Clock, CheckCircle2, ChevronRight, FileText, HelpCircle, AlertCircle, XCircle } from 'lucide-react';
+import { Clock, CheckCircle2, ChevronRight, FileText, HelpCircle, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 
 type VerificationStatus = 'verified' | 'pending_manual_review' | 'verification_unavailable';
@@ -10,7 +10,7 @@ interface StatusScreenProps {
 }
 
 export default function StatusScreen({ onProceed, verificationStatus, organizationName }: StatusScreenProps) {
-  const referenceId = `EDU-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+  const referenceId = 'EDU-PENDING';
 
   // Verified - can proceed to billing
   if (verificationStatus === 'verified') {
@@ -128,7 +128,7 @@ export default function StatusScreen({ onProceed, verificationStatus, organizati
                 <div className="w-8 h-8 bg-gray-100 text-text-muted text-xs font-black rounded-xl flex items-center justify-center shrink-0">2</div>
                 <div>
                   <p className="text-sm font-bold text-gray-500">Email Notification</p>
-                  <p className="text-xs text-text-muted">You'll receive an email once verification is complete</p>
+                  <p className="text-xs text-text-muted">You&rsquo;ll receive an email once verification is complete</p>
                 </div>
               </div>
               <div className="flex gap-4">
@@ -184,7 +184,7 @@ export default function StatusScreen({ onProceed, verificationStatus, organizati
             <div className="text-left">
               <p className="text-sm font-bold text-orange-900 mb-2">Manual Review Required</p>
               <p className="text-xs text-orange-700 leading-relaxed">
-                Don't worry! Your application has been submitted successfully. Our team will manually verify 
+                Don&rsquo;t worry! Your application has been submitted successfully. Our team will manually verify 
                 your documents and contact you within 24-48 hours.
               </p>
             </div>
@@ -217,7 +217,7 @@ export default function StatusScreen({ onProceed, verificationStatus, organizati
               <div className="w-8 h-8 bg-gray-100 text-text-muted text-xs font-black rounded-xl flex items-center justify-center shrink-0">2</div>
               <div>
                 <p className="text-sm font-bold text-gray-500">Email Confirmation</p>
-                <p className="text-xs text-text-muted">You'll receive verification results via email</p>
+                <p className="text-xs text-text-muted">You&rsquo;ll receive verification results via email</p>
               </div>
             </div>
             <div className="flex gap-4">

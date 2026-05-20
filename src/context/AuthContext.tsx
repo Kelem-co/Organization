@@ -4,9 +4,9 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 import { featureFlags } from '@/config/featureFlags';
@@ -53,6 +53,25 @@ function writeStoredAuth(state: AuthState) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+function getInitialAuthState(): AuthState {
+  if (typeof window === 'undefined') return defaultAuth;
+
+  if (featureFlags.useRealAuth) {
+    const session = tokenManager.getSession();
+    if (session && !tokenManager.isTokenExpired()) {
+      return {
+        isAuthenticated: true,
+        onboardingComplete: session.onboardingComplete,
+        user: { email: session.email, id: session.userId },
+      };
+    }
+
+    return defaultAuth;
+  }
+
+  return readStoredAuth();
+}
+
 // ─── Context types ────────────────────────────────────────────────────────────
 
 type AuthContextValue = AuthState & {
@@ -68,25 +87,12 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [auth, setAuth] = useState<AuthState>(defaultAuth);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    if (featureFlags.useRealAuth) {
-      // Restore session from tokenManager (sessionStorage)
-      const session = tokenManager.getSession();
-      if (session && !tokenManager.isTokenExpired()) {
-        setAuth({
-          isAuthenticated: true,
-          onboardingComplete: session.onboardingComplete,
-          user: { email: session.email, id: session.userId },
-        });
-      }
-    } else {
-      setAuth(readStoredAuth());
-    }
-    setHydrated(true);
-  }, []);
+  const [auth, setAuth] = useState<AuthState>(getInitialAuthState);
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const persist = useCallback((next: AuthState) => {
     setAuth(next);

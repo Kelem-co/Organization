@@ -12,7 +12,8 @@ export type ApiErrorCode =
   | 'VALIDATION_ERROR'
   | 'SERVER_ERROR'
   | 'CANCELLED'
-  | 'UNKNOWN';
+  | 'UNKNOWN'
+  | string;
 
 export interface FieldError {
   field: string;
@@ -49,6 +50,63 @@ const STATUS_MESSAGES: Record<number, { code: ApiErrorCode; message: string }> =
   504: { code: 'SERVER_ERROR', message: 'The server took too long to respond. Please try again.' },
 };
 
+function extractErrorPayload(raw: unknown): {
+  code?: string;
+  message?: string;
+  fieldErrors?: FieldError[];
+} {
+  if (!raw || typeof raw !== 'object') {
+    return {};
+  }
+
+  const payload = raw as Record<string, unknown>;
+
+  if (Array.isArray(payload.errors)) {
+    const items = payload.errors.filter(
+      (item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object',
+    );
+
+    const fieldErrors = items
+      .filter(
+        (item): item is Record<string, string> & { field: string; detail: string } =>
+          typeof item.field === 'string' && typeof item.detail === 'string',
+      )
+      .map(({ field, detail }) => ({ field, message: detail }));
+
+    const details = items
+      .map((item) => (typeof item.detail === 'string' ? item.detail.trim() : ''))
+      .filter(Boolean);
+
+    const firstCode = items.find((item) => typeof item.code === 'string')?.code as string | undefined;
+
+    return {
+      code: firstCode,
+      message: details.length > 0 ? details.join('. ') : undefined,
+      fieldErrors: fieldErrors.length > 0 ? fieldErrors : undefined,
+    };
+  }
+
+  if (payload.errors && typeof payload.errors === 'object') {
+    const fieldErrors = Object.entries(payload.errors as Record<string, unknown>)
+      .filter(([, value]) => typeof value === 'string')
+      .map(([field, message]) => ({ field, message: message as string }));
+
+    if (fieldErrors.length > 0) {
+      return { fieldErrors };
+    }
+  }
+
+  if (typeof payload.detail === 'string' && payload.detail.trim()) {
+    return { message: payload.detail.trim() };
+  }
+
+  if (typeof payload.message === 'string' && payload.message.trim()) {
+    return { message: payload.message.trim() };
+  }
+
+  return {};
+}
+
 export function normalizeError(raw: unknown, status?: number): NormalizedError {
   // Cancelled request — silent
   if (raw instanceof DOMException && raw.name === 'AbortError') {
@@ -70,21 +128,29 @@ export function normalizeError(raw: unknown, status?: number): NormalizedError {
 
   // HTTP status-based errors
   if (status !== undefined) {
+    const extracted = extractErrorPayload(raw);
     const mapped = STATUS_MESSAGES[status];
     if (mapped) {
-      return { ...mapped, originalStatus: status };
+      return {
+        code: extracted.code ?? mapped.code,
+        message: extracted.message ?? mapped.message,
+        fieldErrors: extracted.fieldErrors,
+        originalStatus: status,
+      };
     }
     if (status >= 500) {
       return {
-        code: 'SERVER_ERROR',
-        message: 'Something went wrong on our end. Please try again shortly.',
+        code: extracted.code ?? 'SERVER_ERROR',
+        message: extracted.message ?? 'Something went wrong on our end. Please try again shortly.',
+        fieldErrors: extracted.fieldErrors,
         originalStatus: status,
       };
     }
     if (status >= 400) {
       return {
-        code: 'UNKNOWN',
-        message: 'An unexpected error occurred. Please try again.',
+        code: extracted.code ?? 'UNKNOWN',
+        message: extracted.message ?? 'An unexpected error occurred. Please try again.',
+        fieldErrors: extracted.fieldErrors,
         originalStatus: status,
       };
     }

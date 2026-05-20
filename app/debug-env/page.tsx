@@ -69,7 +69,7 @@ export default function DebugEnvPage() {
 
         <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <p className="text-sm text-yellow-800">
-            <strong>Note:</strong> If values show as "undefined", you need to:
+            <strong>Note:</strong> If values show as &quot;undefined&quot;, you need to:
             <br />
             1. Make sure .env.local exists in the project root
             <br />

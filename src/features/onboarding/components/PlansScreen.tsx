@@ -54,7 +54,7 @@ export default function PlansScreen({ onComplete }: PlansScreenProps) {
     <div className="w-full max-w-5xl">
       <div className="text-center mb-12">
         <h2 className="text-3xl font-bold text-primary-navy mb-3">Subscription Plans</h2>
-        <p className="text-text-muted">Choose the plan that fits your institution's size and requirements.</p>
+        <p className="text-text-muted">Choose the plan that fits your institution&rsquo;s size and requirements.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">

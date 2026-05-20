@@ -6,10 +6,11 @@ import { schoolsApi } from '@/lib/services/schoolsApi';
 import { branchesApi } from '@/lib/services/branchesApi';
 import { organizationsApi } from '@/lib/services/organizationsApi';
 import { branchAdminsApi } from '@/lib/services/branchAdminsApi';
+import { resolveMediaUrl } from '@/lib/media/resolveMediaUrl';
+import { getSchoolAvatarUrl } from '@/lib/utils/schoolAvatar';
 import { MOCK_SCHOOLS, MOCK_BRANCHES, MOCK_ADMINS } from '@/features/dashboard/constants';
 import type { School, Branch, Admin } from '@/features/dashboard/types';
-import type { ApiSchool } from '@/lib/types/schools';
-import type { CreateBranchRequest } from '@/lib/types/branches';
+import type { CreateBranchRequest, UpdateBranchRequest } from '@/lib/types/branches';
 import type { BranchAdmin } from '@/lib/types/branchAdmins';
 
 export function useBranchDetail(schoolId: string) {
@@ -24,7 +25,6 @@ export function useBranchDetail(schoolId: string) {
     if (!schoolId) return;
 
     let cancelled = false;
-    setLoading(true);
 
     // Fetch school data (use real API if useRealSchools is enabled)
     const fetchSchool = async () => {
@@ -40,12 +40,19 @@ export function useBranchDetail(schoolId: string) {
           const convertedSchool: School = {
             id: apiSchool.id,
             name: apiSchool.name,
-            logo: apiSchool.logo || `https://picsum.photos/seed/${apiSchool.id}/800/600`,
+            logo:
+              (await resolveMediaUrl(apiSchool.logo)) ||
+              getSchoolAvatarUrl(apiSchool.name),
+            logoMediaId: apiSchool.logo,
             location: apiSchool.country,
             studentCount: 0, // TODO: Get from API when available
             staffCount: 0, // TODO: Get from API when available
             description: apiSchool.description,
             website: apiSchool.website,
+            organizationId: apiSchool.organization,
+            contactEmail: apiSchool.contact_email,
+            contactPhone: apiSchool.contact_phone,
+            status: apiSchool.status,
           };
           setSchool(convertedSchool);
         } catch (err) {
@@ -74,6 +81,10 @@ export function useBranchDetail(schoolId: string) {
             name: apiBranch.name,
             address: apiBranch.address,
             city: apiBranch.city,
+            region: apiBranch.region,
+            contactPhone: apiBranch.contact_phone,
+            contactEmail: apiBranch.contact_email,
+            status: apiBranch.status,
             studentCount: 0, // TODO: Get from API
             teacherCount: 0, // TODO: Get from API
             capacity: 1000, // TODO: Get from API
@@ -137,6 +148,10 @@ export function useBranchDetail(schoolId: string) {
         name: branchData.name,
         address: branchData.address,
         city: branchData.city,
+        region: branchData.region,
+        contactPhone: branchData.contact_phone,
+        contactEmail: branchData.contact_email,
+        status: 'ACTIVE',
         studentCount: 0,
         teacherCount: 0,
         capacity: 1000,
@@ -180,6 +195,10 @@ export function useBranchDetail(schoolId: string) {
       name: created.name,
       address: created.address,
       city: created.city,
+      region: created.region,
+      contactPhone: created.contact_phone,
+      contactEmail: created.contact_email,
+      status: created.status,
       studentCount: 0,
       teacherCount: 0,
       capacity: 1000,
@@ -189,6 +208,43 @@ export function useBranchDetail(schoolId: string) {
     setBranches(prev => [newBranch, ...prev]);
     return newBranch;
   }, [schoolId, organizationId]);
+
+  const updateBranch = useCallback(async (branchId: string, branchData: UpdateBranchRequest) => {
+    if (!featureFlags.useRealBranches) {
+      setBranches(prev => prev.map(branch => (
+        branch.id === branchId
+          ? {
+              ...branch,
+              ...(branchData.name !== undefined ? { name: branchData.name } : {}),
+              ...(branchData.address !== undefined ? { address: branchData.address } : {}),
+              ...(branchData.city !== undefined ? { city: branchData.city } : {}),
+              ...(branchData.region !== undefined ? { region: branchData.region } : {}),
+              ...(branchData.contact_phone !== undefined ? { contactPhone: branchData.contact_phone } : {}),
+              ...(branchData.contact_email !== undefined ? { contactEmail: branchData.contact_email } : {}),
+              ...(branchData.status !== undefined ? { status: branchData.status } : {}),
+            }
+          : branch
+      )));
+      return;
+    }
+
+    const updated = await branchesApi.update(branchId, branchData);
+
+    setBranches(prev => prev.map(branch => (
+      branch.id === branchId
+        ? {
+            ...branch,
+            name: updated.name,
+            address: updated.address,
+            city: updated.city,
+            region: updated.region,
+            contactPhone: updated.contact_phone,
+            contactEmail: updated.contact_email,
+            status: updated.status,
+          }
+        : branch
+    )));
+  }, []);
 
   const refreshBranchAdmins = useCallback(async (branchId: string) => {
     if (!featureFlags.useRealBranches) return;
@@ -213,6 +269,7 @@ export function useBranchDetail(schoolId: string) {
     setAdmins, 
     loading, 
     addBranch,
+    updateBranch,
     refreshBranchAdmins,
   };
 }

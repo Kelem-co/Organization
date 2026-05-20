@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
-import { CreditCard, CheckCircle2, AlertCircle, FileText, Download, Shield } from 'lucide-react';
+import { CreditCard, CheckCircle2, FileText, Download, Shield } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function Billing() {

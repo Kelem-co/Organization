@@ -1,35 +1,45 @@
 import { School, Branch, Admin } from './types';
+import { getSchoolAvatarUrl } from '@/lib/utils/schoolAvatar';
 
 export const MOCK_SCHOOLS: School[] = [
   {
     id: '1',
     name: 'St. Andrews Excellence Academy',
-    logo: 'https://picsum.photos/seed/school1/800/600',
+    logo: getSchoolAvatarUrl('St. Andrews Excellence Academy'),
     location: 'United Kingdom',
     studentCount: 1200,
     staffCount: 150,
     description: 'A leading institution focused on academic excellence and holistic development since 1920.',
-    website: 'https://standrews.edu'
+    website: 'https://standrews.edu',
+    contactEmail: 'admin@standrews.edu',
+    contactPhone: '+442079460958',
+    status: 'ACTIVE',
   },
   {
     id: '2',
     name: 'Global International School',
-    logo: 'https://picsum.photos/seed/school2/800/600',
+    logo: getSchoolAvatarUrl('Global International School'),
     location: 'Canada',
     studentCount: 850,
     staffCount: 95,
     description: 'Fostering global citizenship and innovation through a diverse IB curriculum.',
-    website: 'https://globalinternational.ca'
+    website: 'https://globalinternational.ca',
+    contactEmail: 'info@globalinternational.ca',
+    contactPhone: '+14165550199',
+    status: 'ACTIVE',
   },
   {
     id: '3',
     name: 'Metropolitan Tech High',
-    logo: 'https://picsum.photos/seed/school3/800/600',
+    logo: getSchoolAvatarUrl('Metropolitan Tech High'),
     location: 'United States',
     studentCount: 2100,
     staffCount: 220,
     description: 'Empowering the next generation of engineers and technology leaders.',
-    website: 'https://metrotech.edu'
+    website: 'https://metrotech.edu',
+    contactEmail: 'contact@metrotech.edu',
+    contactPhone: '+12125550188',
+    status: 'ACTIVE',
   }
 ];
 

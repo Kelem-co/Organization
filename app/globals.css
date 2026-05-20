@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "react-phone-number-input/style.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -229,6 +230,9 @@
 }
 
 @layer base {
+  html {
+    font-size: 15px;
+  }
   * {
     @apply border-border outline-ring/50;
   }
@@ -240,22 +244,60 @@
 
 @layer components {
   .card-elevated {
-    @apply bg-surface-white rounded-[var(--radius-school)] shadow-[0_20px_50px_rgba(0,0,0,0.03),0_10px_30px_rgba(0,0,0,0.02)] border border-black/[0.02] p-10 md:p-12;
+    @apply bg-surface-white rounded-[var(--radius-school)] shadow-[0_20px_50px_rgba(0,0,0,0.03),0_10px_30px_rgba(0,0,0,0.02)] border border-black/[0.02] p-8 md:p-10;
   }
 
   .btn-primary {
-    @apply bg-primary-navy text-white px-8 py-4 rounded-full font-bold tracking-wide transition-all hover:bg-[#151B63] hover:shadow-[0_15px_30px_-5px_rgba(26,35,126,0.5)] hover:-translate-y-0.5 active:scale-[0.97] active:translate-y-0 disabled:opacity-50 flex items-center justify-center gap-2;
+    @apply bg-primary-navy text-white px-7 py-3.5 rounded-full font-bold tracking-wide transition-all hover:bg-[#151B63] hover:shadow-[0_15px_30px_-5px_rgba(26,35,126,0.5)] hover:-translate-y-0.5 active:scale-[0.97] active:translate-y-0 disabled:opacity-50 flex items-center justify-center gap-2;
   }
 
   .btn-secondary {
-    @apply bg-white/40 backdrop-blur-sm text-primary-navy border border-primary-navy/10 px-8 py-4 rounded-full font-bold transition-all hover:bg-white hover:border-primary-navy/30 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.97] active:translate-y-0 disabled:opacity-50 flex items-center justify-center gap-2;
+    @apply bg-white/40 backdrop-blur-sm text-primary-navy border border-primary-navy/10 px-7 py-3.5 rounded-full font-bold transition-all hover:bg-white hover:border-primary-navy/30 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.97] active:translate-y-0 disabled:opacity-50 flex items-center justify-center gap-2;
   }
 
   .input-field {
-    @apply w-full px-6 py-4 rounded-[var(--radius-school)] border border-gray-100 bg-gray-50/30 focus:bg-white focus:border-primary-navy focus:ring-8 focus:ring-primary-navy/[0.03] outline-none transition-all placeholder:text-gray-400 text-base text-gray-900;
+    @apply w-full px-5 py-3.5 rounded-[var(--radius-school)] border border-gray-100 bg-gray-50/30 focus:bg-white focus:border-primary-navy focus:ring-8 focus:ring-primary-navy/[0.03] outline-none transition-all placeholder:text-gray-400 text-base text-gray-900;
   }
 
   .dashboard-surface {
     @apply bg-surface text-primary-navy;
   }
+}
+
+.phone-input-base {
+  align-items: center;
+}
+
+.phone-input-base .PhoneInputCountry {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.phone-input-base .PhoneInputCountrySelect {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.phone-input-base .PhoneInputCountryIcon {
+  width: 1.5rem;
+  height: 1rem;
+  overflow: hidden;
+  border-radius: 0.2rem;
+  box-shadow: 0 0 0 1px rgb(15 23 42 / 0.08);
+}
+
+.phone-input-base .PhoneInputCountrySelectArrow {
+  margin-left: 0.5rem;
+  color: rgb(15 23 42 / 0.45);
+}
+
+.phone-input-base .PhoneInputInput {
+  min-width: 0;
+  width: 100%;
+  background: transparent;
+  outline: none;
 }

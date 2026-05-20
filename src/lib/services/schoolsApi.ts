@@ -1,5 +1,5 @@
 import { apiRequest } from '../api/client';
-import type { ApiSchool, CreateSchoolRequest, SchoolsListResponse } from '../types/schools';
+import type { ApiSchool, CreateSchoolRequest, SchoolsListResponse, UpdateSchoolRequest } from '../types/schools';
 
 export const schoolsApi = {
   async list(): Promise<SchoolsListResponse> {
@@ -27,7 +27,7 @@ export const schoolsApi = {
     return res.data;
   },
 
-  async update(schoolId: string, data: Partial<CreateSchoolRequest>): Promise<ApiSchool> {
+  async update(schoolId: string, data: UpdateSchoolRequest): Promise<ApiSchool> {
     const res = await apiRequest<ApiSchool>({
       method: 'PATCH',
       path: `/api/schools/${schoolId}/`,

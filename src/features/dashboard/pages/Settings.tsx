@@ -3,8 +3,12 @@ import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import Drawer from '../components/Drawer';
 import { MediaUploader } from '@/components/MediaUploader';
+import type { MediaUploaderState } from '@/components/MediaUploader';
+import { PhoneNumberField } from '@/components/PhoneNumberField';
 import { Shield, Bell, Mail, MessageSquare, Phone, ChevronRight, Building2, FileText, Lock } from 'lucide-react';
+import { deleteQueuedMedia } from '@/lib/media/deleteQueuedMedia';
 import { useOrganization } from '@/lib/hooks/useOrganization';
+import { normalizeRequiredPhoneNumber } from '@/lib/utils/contactValidation';
 import type { UpdateOrganizationRequest } from '@/lib/types/organizations';
 
 export default function Settings() {
@@ -15,7 +19,16 @@ export default function Settings() {
   const { organization, loading, error: fetchError, updateOrganization } = useOrganization();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [uploadedLicenseId, setUploadedLicenseId] = useState<string | null>(null);
+  const [mediaBusy, setMediaBusy] = useState(false);
+  const [uploadedLicenseId, setUploadedLicenseId] = useState<string | null | undefined>(undefined);
+  const [pendingLicenseDeletionIds, setPendingLicenseDeletionIds] = useState<string[]>([]);
+  const [businessPhoneNumber, setBusinessPhoneNumber] = useState('');
+  const [clientPhoneNumber, setClientPhoneNumber] = useState('');
+
+  const handleLicenseStateChange = ({ hasChanges, mediaId, pendingRemovalIds }: MediaUploaderState) => {
+    setUploadedLicenseId(hasChanges ? mediaId : undefined);
+    setPendingLicenseDeletionIds(pendingRemovalIds);
+  };
 
   const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -25,30 +38,41 @@ export default function Settings() {
       return;
     }
 
-    const formData = new FormData(e.currentTarget);
-    
-    const updateData: UpdateOrganizationRequest = {
-      name: formData.get('name') as string,
-      trade_name: formData.get('trade_name') as string,
-      tin_number: formData.get('tin_number') as string,
-      license_no: formData.get('license_no') as string,
-      client_full_name: formData.get('client_full_name') as string,
-      business_address: formData.get('business_address') as string,
-      business_phone_number: formData.get('business_phone_number') as string,
-      client_phone_number: formData.get('client_phone_number') as string,
-    };
-
-    // Add license image if uploaded
-    if (uploadedLicenseId) {
-      updateData.business_license_image = uploadedLicenseId;
+    if (mediaBusy) {
+      setError('Please wait for the license upload to finish before saving.');
+      return;
     }
-
     try {
       setSubmitting(true);
       setError(null);
+
+      const formData = new FormData(e.currentTarget);
+      const updateData: UpdateOrganizationRequest = {
+        name: formData.get('name') as string,
+        trade_name: formData.get('trade_name') as string,
+        tin_number: formData.get('tin_number') as string,
+        license_no: formData.get('license_no') as string,
+        client_full_name: formData.get('client_full_name') as string,
+        business_address: formData.get('business_address') as string,
+        business_phone_number: normalizeRequiredPhoneNumber(
+          String(formData.get('business_phone_number') ?? ''),
+          'Business phone'
+        ),
+        client_phone_number: normalizeRequiredPhoneNumber(
+          String(formData.get('client_phone_number') ?? ''),
+          'Client phone'
+        ),
+      };
+
+      if (uploadedLicenseId !== undefined) {
+        updateData.business_license_image = uploadedLicenseId;
+      }
+
       await updateOrganization(updateData);
+      void deleteQueuedMedia([...pendingLicenseDeletionIds]);
       setIsEditModalOpen(false);
-      setUploadedLicenseId(null);
+      setUploadedLicenseId(undefined);
+      setPendingLicenseDeletionIds([]);
     } catch (err) {
       console.error('Failed to update organization:', err);
       if (err && typeof err === 'object' && 'normalized' in err) {
@@ -58,6 +82,8 @@ export default function Settings() {
         } else {
           setError(apiError.normalized.message);
         }
+      } else if (err instanceof Error) {
+        setError(err.message);
       } else {
         setError('Failed to update organization. Please try again.');
       }
@@ -126,7 +152,13 @@ export default function Settings() {
                 </p>
               </div>
               <button 
-                onClick={() => setIsEditModalOpen(true)}
+                onClick={() => {
+                  setBusinessPhoneNumber(organization?.business_phone_number || '');
+                  setClientPhoneNumber(organization?.client_phone_number || '');
+                  setUploadedLicenseId(undefined);
+                  setPendingLicenseDeletionIds([]);
+                  setIsEditModalOpen(true);
+                }}
                 className="w-full sm:w-auto bg-surface border border-outline-variant px-6 py-2.5 rounded-lg text-[10px] lg:text-xs font-bold uppercase tracking-wide hover:bg-surface-container transition-colors active:scale-95"
               >
                 Edit Profile
@@ -241,7 +273,11 @@ export default function Settings() {
         onClose={() => {
           setIsEditModalOpen(false);
           setError(null);
-          setUploadedLicenseId(null);
+          setMediaBusy(false);
+          setUploadedLicenseId(undefined);
+          setPendingLicenseDeletionIds([]);
+          setBusinessPhoneNumber(organization?.business_phone_number || '');
+          setClientPhoneNumber(organization?.client_phone_number || '');
         }} 
         title="Edit Organization Profile"
       >
@@ -253,11 +289,16 @@ export default function Settings() {
           )}
 
           <MediaUploader
+            key={`${organization?.business_license_image ?? 'none'}-${isEditModalOpen ? 'open' : 'closed'}`}
             imageOnly={true}
             accept="image/*"
             onUploaded={(mediaId) => setUploadedLicenseId(mediaId)}
+            onRemoved={() => setUploadedLicenseId(null)}
+            onStateChange={handleLicenseStateChange}
+            onBusyChange={setMediaBusy}
             label="Business License Image (Optional)"
             description="Drop business license image here"
+            initialMediaId={uploadedLicenseId === undefined ? organization?.business_license_image : uploadedLicenseId}
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -335,38 +376,38 @@ export default function Settings() {
 
             <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Business Phone *</label>
-              <input 
+              <PhoneNumberField
                 name="business_phone_number"
-                type="tel" 
+                value={businessPhoneNumber}
+                onChange={setBusinessPhoneNumber}
                 required
-                defaultValue={organization?.business_phone_number}
                 placeholder="+1 (555) 000-0000"
-                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+                className="w-full rounded-lg border border-outline-variant bg-surface-container px-4 py-3 text-sm focus-within:ring-2 focus-within:ring-primary-navy/20"
               />
             </div>
 
             <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Client Phone *</label>
-              <input 
+              <PhoneNumberField
                 name="client_phone_number"
-                type="tel" 
+                value={clientPhoneNumber}
+                onChange={setClientPhoneNumber}
                 required
-                defaultValue={organization?.client_phone_number}
                 placeholder="+1 (555) 000-0000"
-                className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-navy/20"
+                className="w-full rounded-lg border border-outline-variant bg-surface-container px-4 py-3 text-sm focus-within:ring-2 focus-within:ring-primary-navy/20"
               />
             </div>
           </div>
 
           <button 
             type="submit" 
-            disabled={submitting}
+            disabled={submitting || mediaBusy}
             className="w-full bg-primary-navy text-white py-4 rounded-lg font-bold text-sm uppercase tracking-[0.1em] hover:opacity-90 transition-opacity active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {submitting ? (
+            {submitting || mediaBusy ? (
               <div className="flex items-center justify-center gap-2">
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Saving Changes...
+                {mediaBusy ? 'Uploading License...' : 'Saving Changes...'}
               </div>
             ) : (
               'Save Changes'
@@ -394,7 +435,7 @@ export default function Settings() {
           </div>
 
           <div className="space-y-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Type "CONFIRM" to proceed</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-primary-navy/60">Type &quot;CONFIRM&quot; to proceed</p>
             <input 
               type="text" 
               placeholder="CONFIRM"

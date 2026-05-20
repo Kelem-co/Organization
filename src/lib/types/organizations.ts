@@ -39,5 +39,5 @@ export interface UpdateOrganizationRequest {
   business_address?: string;
   business_phone_number?: string;
   client_phone_number?: string;
-  business_license_image?: string; // UUID of uploaded media file
+  business_license_image?: string | null; // UUID of uploaded media file
 }

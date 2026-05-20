@@ -25,7 +25,7 @@ export interface CreateBranchRequest {
   status?: 'ACTIVE' | 'INACTIVE';
 }
 
-export interface UpdateBranchRequest extends Partial<CreateBranchRequest> {}
+export type UpdateBranchRequest = Partial<CreateBranchRequest>;
 
 export interface BranchesListResponse {
   count: number;

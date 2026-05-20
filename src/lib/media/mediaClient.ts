@@ -1,4 +1,6 @@
 // lib/media/mediaClient.ts
+import { refreshAccessToken } from '@/lib/api/refreshToken';
+
 export type MediaId = string;
 
 export type MediaUploadInitResponse = {
@@ -59,18 +61,34 @@ export function createMediaClient(options: MediaClientOptions = {}) {
     path: string,
     init: RequestInit = {}
   ): Promise<T> {
-    const authHeaders = options.getAuthHeaders
-      ? await options.getAuthHeaders()
-      : {};
+    const buildHeaders = async () => {
+      const authHeaders = options.getAuthHeaders
+        ? await options.getAuthHeaders()
+        : {};
 
-    const res = await fetch(`${baseUrl}${path}`, {
-      ...init,
-      headers: {
+      return {
         "Content-Type": "application/json",
         ...authHeaders,
         ...init.headers,
-      },
+      };
+    };
+
+    let headers = await buildHeaders();
+    let res = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      headers,
     });
+
+    if (res.status === 401) {
+      const nextAccessToken = await refreshAccessToken();
+      if (nextAccessToken) {
+        headers = await buildHeaders();
+        res = await fetch(`${baseUrl}${path}`, {
+          ...init,
+          headers,
+        });
+      }
+    }
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
@@ -79,7 +97,17 @@ export function createMediaClient(options: MediaClientOptions = {}) {
       );
     }
 
-    return res.json();
+    if (res.status === 204) {
+      return undefined as T;
+    }
+
+    const contentType = res.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      return res.json();
+    }
+
+    const text = await res.text().catch(() => "");
+    return (text ? text : undefined) as T;
   }
 
   async function initiateUpload(file: File): Promise<MediaUploadInitResponse> {

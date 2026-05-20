@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { CheckCircle2, XCircle, Loader2, Building2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { authApi } from '@/lib/services/authApi';
-import { tokenManager } from '@/lib/api/tokenManager';
+import { formatAuthError } from '@/lib/utils/errorMessages';
 
 export default function ActivatePage() {
   const params = useParams();
@@ -35,12 +35,7 @@ export default function ActivatePage() {
         }, 2000);
       } catch (err: unknown) {
         setStatus('error');
-        if (err && typeof err === 'object' && 'normalized' in err) {
-          const apiError = err as { normalized: { message: string } };
-          setError(apiError.normalized.message);
-        } else {
-          setError('Activation failed. The link may be invalid or expired.');
-        }
+        setError(formatAuthError(err));
       }
     };
 
