@@ -1,0 +1,51 @@
+import { apiRequest } from '../api/client';
+import type { OrganizationsResponse, Organization, UpdateOrganizationRequest } from '../types/organizations';
+
+export interface CreateOrganizationRequest {
+  name: string;
+  trade_name: string;
+  tin_number: string;
+  license_no: string;
+  client_full_name: string;
+  business_address: string;
+  business_phone_number: string;
+  client_phone_number: string;
+  business_license_image?: string | null; // UUID of uploaded media file
+}
+
+export const organizationsApi = {
+  async list(options?: { skipCache?: boolean }): Promise<OrganizationsResponse> {
+    const res = await apiRequest<OrganizationsResponse>({
+      method: 'GET',
+      path: '/api/organizations/',
+      skipCache: options?.skipCache,
+    });
+    return res.data;
+  },
+
+  async create(data: CreateOrganizationRequest): Promise<Organization> {
+    const res = await apiRequest<Organization>({
+      method: 'POST',
+      path: '/api/organizations/',
+      body: data,
+    });
+    return res.data;
+  },
+
+  async get(id: string): Promise<Organization> {
+    const res = await apiRequest<Organization>({
+      method: 'GET',
+      path: `/api/organizations/${id}/`,
+    });
+    return res.data;
+  },
+
+  async update(id: string, data: UpdateOrganizationRequest): Promise<Organization> {
+    const res = await apiRequest<Organization>({
+      method: 'PUT',
+      path: `/api/organizations/${id}/`,
+      body: data,
+    });
+    return res.data;
+  },
+};

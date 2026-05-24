@@ -1,19 +1,37 @@
-import { Button } from "@/components/ui/button"
+'use client';
 
-export default function Page() {
-  return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import SchoolDashboard from '@/features/dashboard/pages/SchoolDashboard';
+
+export default function RootPage() {
+  const { hydrated, isAuthenticated, onboardingComplete } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!hydrated) return;
+
+    // If not authenticated or no verified org, show landing page
+    if (!isAuthenticated || !onboardingComplete) {
+      router.replace('/landing');
+    }
+  }, [hydrated, isAuthenticated, onboardingComplete, router]);
+
+  // Show loading while checking auth
+  if (!hydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg-grey">
+        <div className="w-10 h-10 border-4 border-primary-navy/20 border-t-primary-navy rounded-full animate-spin" />
       </div>
-    </div>
-  )
+    );
+  }
+
+  // If authenticated with verified org, show dashboard
+  if (isAuthenticated && onboardingComplete) {
+    return <SchoolDashboard />;
+  }
+
+  // Otherwise show nothing while redirecting
+  return null;
 }
