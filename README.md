@@ -1,173 +1,241 @@
-# Kelem.co - Parent-School Engagement Platform
+<div align="center">
+  <img src="./public/logo.svg" alt="Organization Dashboard logo" width="140" height="140">
+  <br><br>
+  <h1>Organization Dashboard</h1>
+  <p><em>Organization and school operations dashboard built with Next.js</em></p>
+  <br>
+  <p>
+    <strong>Course:</strong> Software Engineering Final Year Project<br>
+    <strong>Institution:</strong> Addis Ababa Science and Technology University
+  </p>
+  <br>
+  <p>
+    <strong>Collaborators:</strong><br>
+    <a href="https://github.com/fitiha">fitiha</a> ·
+    <a href="https://github.com/NahomTesM">NahomTesM</a> ·
+    <a href="https://github.com/oddegen">oddegen</a> ·
+    <a href="https://github.com/RobelD420">RobelD420</a> ·
+    <a href="https://github.com/Tonetor777">Tonetor777</a>
+  </p>
+</div>
 
-A modern Next.js application for managing school-parent communication and engagement.
+---
+
+## Table of Contents
+
+1. [Project Overview](#project-overview)
+2. [Key Features](#key-features)
+3. [Technology Stack](#technology-stack)
+4. [Project Structure](#project-structure)
+5. [Getting Started](#getting-started)
+6. [Environment Variables](#environment-variables)
+7. [Available Scripts](#available-scripts)
+8. [Development Notes](#development-notes)
+9. [Testing](#testing)
+10. [Troubleshooting](#troubleshooting)
+
+---
+
+## Project Overview
+
+Kelem is a Next.js application that helps schools and educational organizations manage onboarding and daily operations from a single interface. It includes public-facing flows such as landing, login, activation, password reset, and organization onboarding, as well as authenticated portal pages for dashboard insights, schools, branches, analytics, billing, and settings.
+
+The codebase uses the App Router, TypeScript, a centralized API layer, reusable form and media utilities, and modular feature folders to keep product flows maintainable as the platform grows.
+
+---
+
+## Key Features
+
+| Area | Description |
+|---|---|
+| **Authentication Flows** | Login, account activation, password reset, email confirmation, and manual verification screens. |
+| **Organization Onboarding** | Guided onboarding flow for setting up organizations, capturing details, and moving users toward approval and activation. |
+| **Portal Dashboard** | Authenticated dashboard experience with organization-aware navigation and summary views. |
+| **School & Branch Management** | API-backed hooks and pages for schools, branch details, and related operational data. |
+| **Analytics & Billing** | Dedicated portal routes and types for analytics reporting and billing workflows. |
+| **Settings & Profile Data** | Centralized settings models and services for maintaining organization configuration. |
+| **Media Upload Support** | Shared `MediaUploader` and media client utilities for forms that attach or remove media. |
+| **Reusable UI Foundation** | Shared inputs, modals, phone number fields, legal modal, and `shadcn/ui` primitives. |
+
+---
+
+## Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js (App Router) |
+| Language | TypeScript 5 |
+| UI | React 19 |
+| Styling | Tailwind CSS 4 |
+| Component Primitives | `shadcn/ui`, Radix UI |
+| Charts | Recharts |
+| Maps | `@vis.gl/react-google-maps` |
+| Testing | Vitest, Testing Library, JSDOM, MSW |
+| Tooling | ESLint, Prettier, Turbopack |
+
+---
+
+## Project Structure
+
+```text
+.
+├── app/                     # Next.js routes, layouts, and page entry points
+│   ├── (portal)/            # Authenticated portal pages
+│   ├── activate/            # Account activation flow
+│   ├── landing/             # Marketing landing page
+│   ├── login/               # Authentication entry
+│   ├── onboarding/          # Organization onboarding
+│   └── ...                  # Status, reset, selection, and verification pages
+├── components/              # Shared UI components and shadcn/ui primitives
+├── docs/                    # Project-specific implementation notes
+├── hooks/                   # Shared React hooks
+├── public/                  # Static assets such as logo.svg
+├── src/
+│   ├── components/          # Shared form and utility components
+│   ├── context/             # Auth and organization providers
+│   ├── features/            # Feature modules such as dashboard and onboarding
+│   ├── lib/
+│   │   ├── api/             # API client, config, token handling, cache, errors
+│   │   ├── media/           # Media upload, URL resolution, delete helpers
+│   │   ├── services/        # Domain service layer for backend integration
+│   │   ├── types/           # Shared domain types
+│   │   └── utils/           # Validation and UI helpers
+│   ├── types/               # Extra project type declarations
+│   └── __tests__/           # Test setup and integration coverage
+└── README.md
+```
+
+---
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ and npm
-- Backend API running (see backend repository)
+- Node.js 18 or newer
+- npm
+- A running backend API for full integration flows
 
 ### Installation
 
-1. Clone the repository
-2. Install dependencies:
-
 ```bash
+git clone <your-repository-url>
+cd Organization
 npm install
 ```
 
-3. Configure environment variables:
-
-Copy `.env.example` to `.env.local` and update the values:
-
-```bash
-cp .env.example .env.local
-```
-
-### Environment Configuration
-
-Edit `.env.local` with your settings:
-
-```env
-# Backend API - REQUIRED
-NEXT_PUBLIC_API_BASE_URL=https://your-backend-url.com
-NEXT_PUBLIC_API_TIMEOUT=30000
-
-# Google Services (Optional)
-NEXT_PUBLIC_GOOGLE_MAPS_PLATFORM_KEY=your_google_maps_key
-
-# Feature Flags - Enable/disable API integrations
-NEXT_PUBLIC_FF_REAL_AUTH=true
-NEXT_PUBLIC_FF_REAL_SCHOOLS=true
-NEXT_PUBLIC_FF_REAL_BRANCHES=false
-NEXT_PUBLIC_FF_REAL_ANALYTICS=false
-NEXT_PUBLIC_FF_REAL_BILLING=false
-NEXT_PUBLIC_FF_REAL_SETTINGS=false
-NEXT_PUBLIC_FF_REAL_ONBOARDING=true
-```
-
-**Important:** 
-- Always use environment variables for configuration
-- Never hardcode URLs or API keys in the source code
-- The `NEXT_PUBLIC_` prefix is required for client-side access
-- Restart the dev server after changing environment variables
-
-### Running the Development Server
+### Run the Development Server
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open `http://localhost:3000` in your browser.
 
-### Building for Production
+### Production Build
 
 ```bash
 npm run build
-npm start
+npm run start
 ```
 
-## Project Structure
+---
 
-```
-├── app/                    # Next.js app directory (routes)
-├── src/
-│   ├── components/        # Reusable React components
-│   ├── config/           # Configuration files
-│   ├── context/          # React context providers
-│   ├── features/         # Feature-based modules
-│   ├── lib/              # Utilities and API clients
-│   │   ├── api/         # API client and configuration
-│   │   ├── hooks/       # Custom React hooks
-│   │   ├── services/    # API service layers
-│   │   └── types/       # TypeScript type definitions
-│   └── ...
-├── components/           # shadcn/ui components
-└── public/              # Static assets
-```
+## Environment Variables
 
-## Adding UI Components
-
-This project uses [shadcn/ui](https://ui.shadcn.com/) for UI components.
-
-To add components:
+Copy the example file and update it for your environment:
 
 ```bash
-npx shadcn@latest add button
+cp .env.example .env.local
 ```
 
-This will place the UI components in the `components/ui` directory.
+Core variables used by the app include:
 
-### Using Components
-
-```tsx
-import { Button } from "@/components/ui/button";
-
-export default function MyComponent() {
-  return <Button>Click me</Button>;
-}
+```env
+NEXT_PUBLIC_API_BASE_URL=https://your-backend-url.com
+NEXT_PUBLIC_API_TIMEOUT=30000
 ```
 
-## Feature Flags
+Notes:
 
-The application uses feature flags to gradually enable backend integrations:
+- Use `.env.local` for local development values.
+- Restart the dev server after changing environment variables.
+- `NEXT_PUBLIC_` variables are exposed to the client and should only contain safe public configuration.
+- Keep `.env.example` updated when adding new required configuration.
 
-- `NEXT_PUBLIC_FF_REAL_AUTH` - Use real authentication API
-- `NEXT_PUBLIC_FF_REAL_SCHOOLS` - Use real schools API
-- `NEXT_PUBLIC_FF_REAL_BRANCHES` - Use real branches API
-- `NEXT_PUBLIC_FF_REAL_ANALYTICS` - Use real analytics API
-- `NEXT_PUBLIC_FF_REAL_BILLING` - Use real billing API
-- `NEXT_PUBLIC_FF_REAL_SETTINGS` - Use real settings API
-- `NEXT_PUBLIC_FF_REAL_ONBOARDING` - Use real onboarding API
+---
 
-Set to `true` to enable, `false` to use mock data.
+## Available Scripts
 
-## Development Guidelines
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Start the local dev server with Turbopack |
+| `npm run build` | Create a production build |
+| `npm run start` | Start the production server |
+| `npm run lint` | Run ESLint |
+| `npm run typecheck` | Run TypeScript checks without emitting files |
+| `npm run test` | Run the test suite once |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run test:coverage` | Run tests with coverage output |
+| `npm run format` | Format TypeScript and TSX files with Prettier |
 
-### Configuration Best Practices
+---
 
-1. **Never hardcode URLs or secrets** - Always use environment variables
-2. **Use the config module** - Import from `@/lib/api/config` or `@/config/featureFlags`
-3. **Validate environment variables** - The config module validates required variables
-4. **Document new variables** - Update `.env.example` when adding new variables
+## Development Notes
 
 ### API Integration
 
-All API calls go through the centralized API client in `src/lib/api/client.ts`:
+All backend communication is funneled through the shared API layer in [`src/lib/api`](./src/lib/api) and domain services in [`src/lib/services`](./src/lib/services). This keeps request configuration, token handling, caching, and error normalization consistent across features.
 
-```typescript
-import { apiRequest } from '@/lib/api/client';
+### Media Forms
 
-const response = await apiRequest({
-  method: 'GET',
-  path: '/api/schools/',
-});
+Forms that use `MediaUploader` should treat upload and removal actions as blocking operations. The submit action must wait until media work is finished and a final media ID is ready.
+
+---
+
+## Testing
+
+This project uses Vitest with Testing Library and JSDOM for component and utility testing, plus MSW for request mocking when needed.
+
+Common commands:
+
+```bash
+npm run test
+npm run test:watch
+npm run test:coverage
 ```
 
-The client automatically:
-- Adds authentication headers
-- Handles token refresh
-- Provides error normalization
-- Implements retry logic
-- Manages request caching
+---
 
 ## Troubleshooting
 
-### Environment Variables Not Loading
+### Environment values are not updating
 
-1. Ensure the variable name starts with `NEXT_PUBLIC_` for client-side access
-2. Restart the development server after changing `.env.local`
-3. Check the browser console for configuration logs (development mode only)
+- Confirm the variable is defined in `.env.local`.
+- Restart the development server after editing environment files.
+- Make sure public client-side variables begin with `NEXT_PUBLIC_`.
 
-### API Connection Issues
+### API requests are failing
 
-1. Verify `NEXT_PUBLIC_API_BASE_URL` is set correctly in `.env.local`
-2. Check that the backend server is running
-3. Look for CORS issues in the browser console
-4. Verify authentication tokens are valid
+- Verify `NEXT_PUBLIC_API_BASE_URL` points to the correct backend.
+- Check whether the backend server is reachable.
+- Confirm the relevant feature flag is enabled when testing live integration.
+- Inspect browser and terminal logs for request or authentication errors.
 
-## License
+### UI changes are not appearing as expected
 
-MIT License
+- Restart `npm run dev` if route or environment behavior seems stale.
+- Run `npm run lint` and `npm run typecheck` to catch structural issues early.
+
+
+---
+
+<div align="center">
+  <p>
+    <strong>Addis Ababa Science and Technology University</strong><br>
+    Faculty of Electrical and Computer Engineering<br>
+    Department of Software Engineering
+  </p>
+  <p>
+    <em>© 2026 Kelem Organization Dashboard. All rights reserved.</em>
+  </p>
+</div>
